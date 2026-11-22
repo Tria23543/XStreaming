@@ -13,47 +13,56 @@ type Props = {
   onPress: (titleItem: any) => {};
 };
 
+// Which badge a title gets, decided from the data that actually separates
+// titles for THIS user:
+// - The user's own entitled titles (from their signed-in titles list) carry
+//   `details`; titles merged in from the public catalog only do not.
+// - details.programs containing BYOG marks a game the user owns
+//   ("Stream your own game").
+// - An entitled title that is not owned and is not flagged free-to-play
+//   (F2P in the catalog offerings, e.g. Fortnite) is playable through the
+//   user's Game Pass subscription: "Included with Game Pass".
+// The public catalog's GPULTIMATE offering tag is deliberately NOT used:
+// in Microsoft's live catalog every cloud title carries it, including
+// free-to-play and purchase-only games (verified against the live catalog).
+export function getTitleBadge(titleItem: any): 'GP' | 'OWNED' | null {
+  if (!titleItem) {
+    return null;
+  }
+  const programs =
+    (titleItem.details && titleItem.details.programs) || [];
+  const isOwned =
+    !titleItem.XCloudTitleId && programs.indexOf('BYOG') > -1;
+  if (isOwned) {
+    return 'OWNED';
+  }
+  if (!titleItem.details) {
+    return null;
+  }
+  const offerings = titleItem.XCloudOfferings;
+  if (offerings) {
+    let isF2P = false;
+    Object.keys(offerings).forEach(key => {
+      const offering = offerings[key];
+      if (
+        offering &&
+        offering.Programs &&
+        offering.Programs.indexOf('F2P') > -1
+      ) {
+        isF2P = true;
+      }
+    });
+    if (isF2P) {
+      return null;
+    }
+  }
+  return 'GP';
+}
+
 const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
   const [loading, setLoading] = React.useState(true);
 
-  const isOwned =
-    !titleItem.XCloudTitleId &&
-    titleItem.details &&
-    titleItem.details.programs &&
-    titleItem.details.programs.indexOf('BYOG') > -1;
-
-  // A game gets the GAME PASS badge only on positive evidence in its own
-  // data: the GPULTIMATE program in its cloud offerings or in its
-  // entitlement programs, or Streamability.WithGPU. Titles that are merely
-  // streamable another way (BYOG / free-to-play like Fortnite) carry none
-  // of these and get no badge. No evidence -> no badge.
-  const offerings = titleItem.XCloudOfferings;
-  let isGamePass = false;
-  if (offerings) {
-    isGamePass = Object.keys(offerings).some(key => {
-      const offering = offerings[key];
-      return (
-        offering &&
-        offering.Programs &&
-        offering.Programs.indexOf('GPULTIMATE') > -1
-      );
-    });
-  }
-  if (
-    !isGamePass &&
-    titleItem.Streamability &&
-    titleItem.Streamability.WithGPU
-  ) {
-    isGamePass = true;
-  }
-  if (
-    !isGamePass &&
-    titleItem.details &&
-    titleItem.details.programs &&
-    titleItem.details.programs.indexOf('GPULTIMATE') > -1
-  ) {
-    isGamePass = true;
-  }
+  const badge = getTitleBadge(titleItem);
 
   const handlePress = () => {
     onPress && onPress(titleItem);
@@ -81,11 +90,11 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
           onError={() => setLoading(false)}
           style={styles.image}
         />
-        {isGamePass ? (
+        {badge === 'GP' ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>GAME PASS</Text>
           </View>
-        ) : isOwned ? (
+        ) : badge === 'OWNED' ? (
           <View style={[styles.badge, styles.badgeOwned]}>
             <Text style={styles.badgeText}>OWNED</Text>
           </View>
