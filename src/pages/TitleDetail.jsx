@@ -133,7 +133,10 @@ function TitleDetail({navigation, route}) {
           <ScrollView style={styles.scrollView}>
             <Image
               source={{
-                uri: 'https:' + titleItem.Image_Poster.URL,
+                uri:
+                  titleItem.Image_Poster && titleItem.Image_Poster.URL
+                    ? 'https:' + titleItem.Image_Poster.URL
+                    : '',
               }}
               resizeMode="cover"
               style={styles.image}
@@ -151,7 +154,7 @@ function TitleDetail({navigation, route}) {
                   {t('byorg')}
                 </HelperText>
               )}
-              {titleItem.Categories.map(item => {
+              {(titleItem.Categories || []).map(item => {
                 return (
                   <View style={styles.tagContainer} key={item}>
                     <Text variant="titleSmall">{item}</Text>
