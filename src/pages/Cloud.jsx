@@ -392,11 +392,11 @@ function CloudScreen({navigation, route}) {
                   handleSelectCategories(0),
                 )}
                 {renderSection(
-                  t('Included with Game Pass'),
+                  t('Included in your subscription'),
                   includedTitles,
                   () =>
                     handleShowSection(
-                      t('Included with Game Pass'),
+                      t('Included in your subscription'),
                       includedTitles,
                     ),
                 )}
