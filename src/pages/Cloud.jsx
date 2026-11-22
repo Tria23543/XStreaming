@@ -6,9 +6,9 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
-  Pressable,
+  TextInput,
 } from 'react-native';
-import {Text, Appbar, Chip, FAB} from 'react-native-paper';
+import {Text, Appbar, FAB} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {useSelector} from 'react-redux';
 import TitleItem from '../components/TitleItem';
@@ -42,6 +42,10 @@ function CloudScreen({navigation, route}) {
   const isFetchGame = React.useRef(false);
   const [fabOpen, setFabOpen] = React.useState(false);
   const [view, setView] = React.useState('home');
+  const [popularTitles, setPopularTitles] = React.useState([]);
+  const [leavingTitles, setLeavingTitles] = React.useState([]);
+  const [mkbTitles, setMkbTitles] = React.useState([]);
+  const [customSection, setCustomSection] = React.useState(null);
 
   const currentTitles = React.useRef([]);
   const totalPage = React.useRef(0);
@@ -86,6 +90,29 @@ function CloudScreen({navigation, route}) {
 
               setTitlesMap(_titleMap);
               setOrgTitles(_orgTitles);
+
+              // Get curated gallery lists from Microsoft's catalog:
+              // Popular, Leaving soon, Mouse and keyboard
+              const mapSigl = (siglId, setter) => {
+                _xCloudApi.getSiglTitles(siglId).then(list => {
+                  const mapped = [];
+                  (list || []).forEach(item => {
+                    if (item.id && _titleMap[item.id]) {
+                      mapped.push(_titleMap[item.id]);
+                    }
+                  });
+                  setter(mapped);
+                });
+              };
+              mapSigl(
+                'e7590b22-e299-44db-ae22-25c61405454c',
+                setPopularTitles,
+              );
+              mapSigl(
+                '393f05bf-e596-4ef6-9487-6d4fa0eab987',
+                setLeavingTitles,
+              );
+              mapSigl('8fa264dd-124f-4af3-97e8-596fcdf4b486', setMkbTitles);
 
               // Get new games
               _xCloudApi.getNewTitles().then(newTitleRes => {
@@ -175,6 +202,19 @@ function CloudScreen({navigation, route}) {
 
   const handleSelectCategories = val => {
     setCurrent(val);
+    setCustomSection(null);
+    setView('grid');
+    setLoading(true);
+    setCurrentPage(1);
+    scrollToTop();
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  };
+
+  const handleShowSection = (sectionTitle, data) => {
+    setCustomSection({title: sectionTitle, data});
+    setCurrent(99);
     setView('grid');
     setLoading(true);
     setCurrentPage(1);
@@ -209,6 +249,10 @@ function CloudScreen({navigation, route}) {
       currentTitles.current = titles;
       currentTitleText = t('All');
       break;
+    case 99:
+      currentTitles.current = customSection ? customSection.data : [];
+      currentTitleText = customSection ? customSection.title : 'xCloud';
+      break;
     default:
       currentTitles.current = [];
       currentTitleText = 'xCloud';
@@ -231,7 +275,21 @@ function CloudScreen({navigation, route}) {
   const endIdx = currentPage * 20;
   let showTitles = currentTitles.current.slice(0, endIdx);
 
-  const renderSection = (sectionTitle, data, categoryVal) => {
+  // Group the loaded library by its real catalog genres
+  const genreMap = {};
+  titles.forEach(item => {
+    (item.Categories || []).forEach(cat => {
+      if (!genreMap[cat]) {
+        genreMap[cat] = [];
+      }
+      genreMap[cat].push(item);
+    });
+  });
+  const genreSections = Object.keys(genreMap)
+    .filter(cat => cat !== 'Other' && genreMap[cat].length >= 8)
+    .sort((a, b) => genreMap[b].length - genreMap[a].length);
+
+  const renderSection = (sectionTitle, data, onShowAll) => {
     if (!data || data.length === 0) {
       return null;
     }
@@ -241,9 +299,7 @@ function CloudScreen({navigation, route}) {
           <Text variant="titleLarge" style={styles.sectionTitle}>
             {sectionTitle} ({data.length})
           </Text>
-          <Text
-            style={styles.showAll}
-            onPress={() => handleSelectCategories(categoryVal)}>
+          <Text style={styles.showAll} onPress={onShowAll}>
             {t('Show all')}
           </Text>
         </View>
@@ -297,46 +353,82 @@ function CloudScreen({navigation, route}) {
                       ')'
                 }
               />
-              {view === 'grid' && (
-                <Appbar.Action
-                  icon="magnify"
-                  onPress={() => {
-                    navigation.navigate('Search', {
-                      keyword,
-                    });
-                  }}
-                />
-              )}
             </Appbar.Header>
 
             {view === 'home' ? (
               <ScrollView>
-                <Pressable
-                  style={styles.searchBar}
-                  onPress={() => {
-                    navigation.navigate('Search', {
-                      keyword,
-                    });
-                  }}>
-                  <Text style={styles.searchBarText}>{t('Search')}</Text>
-                </Pressable>
-                {renderSection(t('Jump back in'), RecentTitles, 0)}
-                {renderSection(t('Recently added'), newTitles, 1)}
-                {renderSection(t('Stream your own game'), orgTitles, 2)}
-                {renderSection(t('All games'), titles, 3)}
+                <View style={styles.searchBar}>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder={t('Search')}
+                    placeholderTextColor="rgba(255,255,255,0.5)"
+                    value={keyword}
+                    onChangeText={text => {
+                      setKeyword(text);
+                      if (text.length > 0) {
+                        setCurrent(3);
+                        setCustomSection(null);
+                        setView('grid');
+                      }
+                    }}
+                  />
+                  {keyword.length > 0 && (
+                    <Text
+                      style={styles.clearSearch}
+                      onPress={() => setKeyword('')}>
+                      ✕
+                    </Text>
+                  )}
+                </View>
+                {renderSection(t('Jump back in'), RecentTitles, () =>
+                  handleSelectCategories(0),
+                )}
+                {renderSection(t('Popular'), popularTitles, () =>
+                  handleShowSection(t('Popular'), popularTitles),
+                )}
+                {renderSection(t('Recently added'), newTitles, () =>
+                  handleSelectCategories(1),
+                )}
+                {renderSection(t('Leaving soon'), leavingTitles, () =>
+                  handleShowSection(t('Leaving soon'), leavingTitles),
+                )}
+                {renderSection(t('Stream your own game'), orgTitles, () =>
+                  handleSelectCategories(2),
+                )}
+                {renderSection(t('Mouse and keyboard'), mkbTitles, () =>
+                  handleShowSection(t('Mouse and keyboard'), mkbTitles),
+                )}
+                {genreSections.map(cat => (
+                  <React.Fragment key={cat}>
+                    {renderSection(cat, genreMap[cat], () =>
+                      handleShowSection(cat, genreMap[cat]),
+                    )}
+                  </React.Fragment>
+                ))}
+                {renderSection(t('All games'), titles, () =>
+                  handleSelectCategories(3),
+                )}
                 {!loading && titles.length === 0 && <Empty />}
               </ScrollView>
             ) : (
               <>
-            {keyword && (
-              <View style={styles.search}>
-                <Chip
-                  icon="cloud-search-outline"
-                  onClose={() => setKeyword('')}>
-                  {keyword}
-                </Chip>
-              </View>
-            )}
+            <View style={styles.searchBar}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder={t('Search')}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                value={keyword}
+                autoFocus={keyword.length > 0}
+                onChangeText={text => setKeyword(text)}
+              />
+              {keyword.length > 0 && (
+                <Text
+                  style={styles.clearSearch}
+                  onPress={() => setKeyword('')}>
+                  ✕
+                </Text>
+              )}
+            </View>
 
             {!loading && !showTitles.length && <Empty />}
 
@@ -399,11 +491,7 @@ function CloudScreen({navigation, route}) {
               },
               {
                 icon: 'magnify',
-                onPress: () => {
-                  navigation.navigate('Search', {
-                    keyword,
-                  });
-                },
+                onPress: () => setFabOpen(false),
               },
             ]}
             onStateChange={({open}) => setFabOpen(open)}
@@ -468,10 +556,6 @@ const styles = StyleSheet.create({
   loadingIndicator: {
     padding: 20,
   },
-  search: {
-    paddingLeft: 10,
-    paddingRight: 10,
-  },
   searchBar: {
     margin: 12,
     marginBottom: 4,
@@ -479,9 +563,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 24,
     backgroundColor: 'rgba(128,128,128,0.25)',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  searchBarText: {
-    opacity: 0.7,
+  searchInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 16,
+    paddingVertical: 2,
+  },
+  clearSearch: {
+    color: '#ffffff',
+    fontSize: 16,
+    paddingLeft: 10,
+    paddingRight: 2,
   },
   section: {
     marginTop: 8,
