@@ -151,7 +151,7 @@ function TitleDetail({navigation, route}) {
               <Text variant="titleMedium">{titleItem.PublisherName}</Text>
               {badge === 'GP' && (
                 <Text variant="titleMedium" style={styles.gpText}>
-                  {t('Included with Game Pass')}
+                  {t('Included in your subscription')}
                 </Text>
               )}
               {badge === 'OWNED' && (
