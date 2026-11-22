@@ -239,7 +239,7 @@ function CloudScreen({navigation, route}) {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text variant="titleLarge" style={styles.sectionTitle}>
-            {sectionTitle}
+            {sectionTitle} ({data.length})
           </Text>
           <Text
             style={styles.showAll}
@@ -249,7 +249,7 @@ function CloudScreen({navigation, route}) {
         </View>
         <FlatList
           horizontal
-          data={data}
+          data={data.slice(0, 20)}
           keyExtractor={(item, index) =>
             (item.productId || item.ProductTitle || 'title') + '-' + index
           }
@@ -280,23 +280,33 @@ function CloudScreen({navigation, route}) {
           <View style={styles.gameContainer}>
             <Appbar.Header>
               {view === 'grid' && (
-                <Appbar.BackAction
+                <Appbar.Action
+                  icon="arrow-left"
                   onPress={() => {
                     setView('home');
                   }}
                 />
               )}
               <Appbar.Content
-                title={view === 'home' ? 'Cloud' : currentTitleText}
+                title={
+                  view === 'home'
+                    ? 'Cloud'
+                    : currentTitleText +
+                      ' (' +
+                      currentTitles.current.length +
+                      ')'
+                }
               />
-              <Appbar.Action
-                icon="magnify"
-                onPress={() => {
-                  navigation.navigate('Search', {
-                    keyword,
-                  });
-                }}
-              />
+              {view === 'grid' && (
+                <Appbar.Action
+                  icon="magnify"
+                  onPress={() => {
+                    navigation.navigate('Search', {
+                      keyword,
+                    });
+                  }}
+                />
+              )}
             </Appbar.Header>
 
             {view === 'home' ? (
@@ -313,7 +323,7 @@ function CloudScreen({navigation, route}) {
                 {renderSection(t('Jump back in'), RecentTitles, 0)}
                 {renderSection(t('Recently added'), newTitles, 1)}
                 {renderSection(t('Stream your own game'), orgTitles, 2)}
-                {renderSection(t('All games'), titles.slice(0, 20), 3)}
+                {renderSection(t('All games'), titles, 3)}
                 {!loading && titles.length === 0 && <Empty />}
               </ScrollView>
             ) : (
