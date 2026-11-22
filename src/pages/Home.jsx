@@ -6,8 +6,9 @@ import {
   FlatList,
   Dimensions,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
-import {Text, FAB, Portal, Modal, Card} from 'react-native-paper';
+import {Text, FAB, Portal, Modal, Card, Button} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {useIsFocused} from '@react-navigation/native';
 import ConsoleItem from '../components/ConsoleItem';
@@ -330,7 +331,29 @@ function HomeScreen({navigation, route}) {
   };
 
   const renderContent = () => {
-    if (!isLogined || loading) {
+    if (!isLogined) {
+      if (loading) {
+        return null;
+      }
+      return (
+        <View style={styles.noConsoles}>
+          <Text variant="titleMedium">{t('NoConsoles')}</Text>
+          {_redirect.current && (
+            <Button
+              mode="contained"
+              style={{marginTop: 16}}
+              onPress={() => {
+                navigation.navigate('Login', {
+                  authUrl: _redirect.current.sisuAuth.MsaOauthRedirect,
+                });
+              }}>
+              {t('Login')}
+            </Button>
+          )}
+        </View>
+      );
+    }
+    if (loading) {
       return null;
     }
     if (consoles.length) {
@@ -373,17 +396,16 @@ function HomeScreen({navigation, route}) {
   return (
     <SafeAreaView style={styles.container} renderToHardwareTextureAndroid>
       <View>
-        <Spinner
-          visible={loading}
-          color={'#107C10'}
-          textContent={loadingText}
-          textStyle={styles.spinnerTextStyle}
-        />
-
         {renderProfile()}
 
         {renderContent()}
       </View>
+      {loading && (
+        <View style={styles.loadingOverlay} pointerEvents="none">
+          <ActivityIndicator size="large" color="#107C10" />
+          <Text style={styles.spinnerTextStyle}>{loadingText}</Text>
+        </View>
+      )}
       {renderFab()}
     </SafeAreaView>
   );
@@ -396,6 +418,16 @@ const styles = StyleSheet.create({
   spinnerTextStyle: {
     color: '#107C10',
     textAlign: 'center',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
   menuWrap: {
     width: 250,
