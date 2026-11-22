@@ -23,7 +23,7 @@ function CloudScreen({navigation, route}) {
 
   // log.info('streamingTokens:', streamingTokens);
 
-  const [current, setCurrent] = React.useState(0);
+  const [current, setCurrent] = React.useState(3);
   const [numColumns, setNumColumns] = React.useState(2);
   const [currentPage, setCurrentPage] = React.useState(1);
 
@@ -240,6 +240,14 @@ function CloudScreen({navigation, route}) {
           <View style={styles.gameContainer}>
             <Appbar.Header>
               <Appbar.Content title={currentTitleText} />
+              <Appbar.Action
+                icon="magnify"
+                onPress={() => {
+                  navigation.navigate('Search', {
+                    keyword,
+                  });
+                }}
+              />
             </Appbar.Header>
 
             {keyword && (
