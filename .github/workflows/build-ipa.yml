@@ -1,0 +1,55 @@
+name: Build unsigned IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out the ios branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install JavaScript dependencies
+        run: |
+          corepack enable || true
+          yarn install --immutable || yarn install
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install
+
+      - name: Build the app (no signing)
+        run: |
+          cd ios
+          xcodebuild \
+            -workspace XStreaming.xcworkspace \
+            -scheme XStreaming \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ../build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package the unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/XStreaming.app Payload/
+          zip -r XStreaming-unsigned.ipa Payload
+
+      - name: Upload the IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: XStreaming-unsigned-ipa
+          path: XStreaming-unsigned.ipa
+          if-no-files-found: error
