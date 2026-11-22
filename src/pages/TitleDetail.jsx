@@ -12,6 +12,7 @@ import Spinner from 'react-native-loading-spinner-overlay';
 import {getSettings} from '../store/settingStore';
 import {useTranslation} from 'react-i18next';
 import {debugFactory} from '../utils/debug';
+import {getTitleBadge} from '../components/TitleItem';
 
 const {UsbRumbleManager} = NativeModules;
 
@@ -118,6 +119,8 @@ function TitleDetail({navigation, route}) {
     }
   }
 
+  const badge = getTitleBadge(titleItem);
+
   return (
     <View style={styles.container}>
       <Spinner
@@ -146,6 +149,26 @@ function TitleDetail({navigation, route}) {
                 {titleItem.ProductTitle}
               </Text>
               <Text variant="titleMedium">{titleItem.PublisherName}</Text>
+              {badge === 'GP' && (
+                <Text variant="titleMedium" style={styles.gpText}>
+                  {t('Included with Game Pass')}
+                </Text>
+              )}
+              {badge === 'OWNED' && (
+                <Text variant="titleMedium" style={styles.gpText}>
+                  {t('Stream your own game')}
+                </Text>
+              )}
+              {badge === null && titleItem.details && (
+                <Text variant="titleMedium" style={styles.gpText}>
+                  {t('Free to play')}
+                </Text>
+              )}
+              {badge === null && !titleItem.details && (
+                <Text variant="titleMedium" style={styles.gpText}>
+                  {t('Stream your own game')} · {t('Needs to be purchased')}
+                </Text>
+              )}
             </View>
 
             <View style={styles.tagsWrap}>
@@ -219,6 +242,10 @@ const styles = StyleSheet.create({
   },
   productTitle: {
     marginBottom: 10,
+  },
+  gpText: {
+    color: '#52B043',
+    marginTop: 4,
   },
   buttonWrap: {
     position: 'absolute',
