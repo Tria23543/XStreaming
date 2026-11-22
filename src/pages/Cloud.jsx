@@ -228,12 +228,12 @@ function CloudScreen({navigation, route}) {
 
   return (
     <>
-      <Spinner
-        visible={loading}
-        color={'#107C10'}
-        textContent={t('Loading...')}
-        textStyle={styles.spinnerTextStyle}
-      />
+      {loading && (
+        <View style={styles.loadingOverlay} pointerEvents="none">
+          <ActivityIndicator size="large" color="#107C10" />
+          <Text style={styles.spinnerTextStyle}>{t('Loading...')}</Text>
+        </View>
+      )}
 
       {!isLimited && (
         <>
@@ -356,6 +356,16 @@ const styles = StyleSheet.create({
   },
   spinnerTextStyle: {
     color: '#107C10',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
   gameContainer: {
     flex: 1,
