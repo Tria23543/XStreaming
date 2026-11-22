@@ -38,10 +38,14 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
         )}
         <Image
           source={{
-            uri: 'https:' + titleItem.Image_Tile.URL,
+            uri:
+              titleItem.Image_Tile && titleItem.Image_Tile.URL
+                ? 'https:' + titleItem.Image_Tile.URL
+                : '',
           }}
           resizeMode={'cover'}
           onLoad={() => setLoading(false)}
+          onError={() => setLoading(false)}
           style={styles.image}
         />
         {isOwned ? (
