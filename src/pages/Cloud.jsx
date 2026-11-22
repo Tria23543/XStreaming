@@ -5,6 +5,8 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
+  Pressable,
 } from 'react-native';
 import {Text, Appbar, Chip, FAB} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
@@ -39,6 +41,7 @@ function CloudScreen({navigation, route}) {
   const flatListRef = React.useRef(null);
   const isFetchGame = React.useRef(false);
   const [fabOpen, setFabOpen] = React.useState(false);
+  const [view, setView] = React.useState('home');
 
   const currentTitles = React.useRef([]);
   const totalPage = React.useRef(0);
@@ -46,6 +49,7 @@ function CloudScreen({navigation, route}) {
   React.useEffect(() => {
     if (route.params?.keyword) {
       setKeyword(route.params.keyword);
+      setView('grid');
     }
     if (!streamingTokens.xCloudToken) {
       setIsLimited(true);
@@ -171,6 +175,7 @@ function CloudScreen({navigation, route}) {
 
   const handleSelectCategories = val => {
     setCurrent(val);
+    setView('grid');
     setLoading(true);
     setCurrentPage(1);
     scrollToTop();
@@ -226,6 +231,41 @@ function CloudScreen({navigation, route}) {
   const endIdx = currentPage * 20;
   let showTitles = currentTitles.current.slice(0, endIdx);
 
+  const renderSection = (sectionTitle, data, categoryVal) => {
+    if (!data || data.length === 0) {
+      return null;
+    }
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            {sectionTitle}
+          </Text>
+          <Text
+            style={styles.showAll}
+            onPress={() => handleSelectCategories(categoryVal)}>
+            {t('Show all')}
+          </Text>
+        </View>
+        <FlatList
+          horizontal
+          data={data}
+          keyExtractor={(item, index) =>
+            (item.productId || item.ProductTitle || 'title') + '-' + index
+          }
+          showsHorizontalScrollIndicator={false}
+          renderItem={({item}) => {
+            return (
+              <View style={styles.rowItem}>
+                <TitleItem titleItem={item} onPress={handleViewDetail} />
+              </View>
+            );
+          }}
+        />
+      </View>
+    );
+  };
+
   return (
     <>
       {loading && (
@@ -239,7 +279,16 @@ function CloudScreen({navigation, route}) {
         <>
           <View style={styles.gameContainer}>
             <Appbar.Header>
-              <Appbar.Content title={currentTitleText} />
+              {view === 'grid' && (
+                <Appbar.BackAction
+                  onPress={() => {
+                    setView('home');
+                  }}
+                />
+              )}
+              <Appbar.Content
+                title={view === 'home' ? 'Cloud' : currentTitleText}
+              />
               <Appbar.Action
                 icon="magnify"
                 onPress={() => {
@@ -250,6 +299,25 @@ function CloudScreen({navigation, route}) {
               />
             </Appbar.Header>
 
+            {view === 'home' ? (
+              <ScrollView>
+                <Pressable
+                  style={styles.searchBar}
+                  onPress={() => {
+                    navigation.navigate('Search', {
+                      keyword,
+                    });
+                  }}>
+                  <Text style={styles.searchBarText}>{t('Search')}</Text>
+                </Pressable>
+                {renderSection(t('Jump back in'), RecentTitles, 0)}
+                {renderSection(t('Recently added'), newTitles, 1)}
+                {renderSection(t('Stream your own game'), orgTitles, 2)}
+                {renderSection(t('All games'), titles.slice(0, 20), 3)}
+                {!loading && titles.length === 0 && <Empty />}
+              </ScrollView>
+            ) : (
+              <>
             {keyword && (
               <View style={styles.search}>
                 <Chip
@@ -289,10 +357,13 @@ function CloudScreen({navigation, route}) {
                 />
               </>
             )}
+              </>
+            )}
           </View>
 
-          <FAB.Group
-            open={fabOpen}
+          {view === 'grid' && (
+            <FAB.Group
+              open={fabOpen}
             visible
             icon={fabOpen ? 'filter' : 'filter-outline'}
             actions={[
@@ -326,7 +397,8 @@ function CloudScreen({navigation, route}) {
               },
             ]}
             onStateChange={({open}) => setFabOpen(open)}
-          />
+            />
+          )}
         </>
       )}
 
@@ -389,6 +461,40 @@ const styles = StyleSheet.create({
   search: {
     paddingLeft: 10,
     paddingRight: 10,
+  },
+  searchBar: {
+    margin: 12,
+    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: 'rgba(128,128,128,0.25)',
+  },
+  searchBarText: {
+    opacity: 0.7,
+  },
+  section: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingLeft: 14,
+    paddingRight: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  sectionTitle: {
+    fontWeight: 'bold',
+  },
+  showAll: {
+    color: '#52B043',
+    fontWeight: 'bold',
+  },
+  rowItem: {
+    width: 175,
   },
 });
 
