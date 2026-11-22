@@ -11,7 +11,7 @@ import {
 import {Text, Appbar, FAB} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {useSelector} from 'react-redux';
-import TitleItem from '../components/TitleItem';
+import TitleItem, {getTitleBadge} from '../components/TitleItem';
 import XcloudApi from '../xCloud';
 import Empty from '../components/Empty';
 import {debugFactory} from '../utils/debug';
@@ -289,6 +289,11 @@ function CloudScreen({navigation, route}) {
     .filter(cat => cat !== 'Other' && genreMap[cat].length >= 8)
     .sort((a, b) => genreMap[b].length - genreMap[a].length);
 
+  // Games included with the user's Game Pass subscription
+  const includedTitles = titles.filter(
+    item => getTitleBadge(item) === 'GP',
+  );
+
   const renderSection = (sectionTitle, data, onShowAll) => {
     if (!data || data.length === 0) {
       return null;
@@ -305,7 +310,10 @@ function CloudScreen({navigation, route}) {
         </View>
         <FlatList
           horizontal
-          data={data.slice(0, 20)}
+          data={data.slice(0, 10)}
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={3}
           keyExtractor={(item, index) =>
             (item.productId || item.ProductTitle || 'title') + '-' + index
           }
@@ -383,6 +391,15 @@ function CloudScreen({navigation, route}) {
                 {renderSection(t('Jump back in'), RecentTitles, () =>
                   handleSelectCategories(0),
                 )}
+                {renderSection(
+                  t('Included with Game Pass'),
+                  includedTitles,
+                  () =>
+                    handleShowSection(
+                      t('Included with Game Pass'),
+                      includedTitles,
+                    ),
+                )}
                 {renderSection(t('Popular'), popularTitles, () =>
                   handleShowSection(t('Popular'), popularTitles),
                 )}
@@ -439,6 +456,10 @@ function CloudScreen({navigation, route}) {
                   data={showTitles}
                   numColumns={numColumns}
                   key={numColumns}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  windowSize={5}
+                  removeClippedSubviews={true}
                   contentContainerStyle={styles.listContainer}
                   renderItem={({item}) => {
                     return (
