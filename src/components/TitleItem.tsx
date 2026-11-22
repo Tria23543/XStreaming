@@ -22,12 +22,13 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
     titleItem.details.programs &&
     titleItem.details.programs.indexOf('BYOG') > -1;
 
-  // A game is only "Game Pass" if Microsoft's catalog data for it carries
-  // the GPULTIMATE program (included with Game Pass Ultimate). Titles that
-  // are merely streamable some other way (e.g. BYOG / free-to-play like
-  // Fortnite) do not have it and must not get the badge.
+  // A game gets the GAME PASS badge only on positive evidence in its own
+  // data: the GPULTIMATE program in its cloud offerings or in its
+  // entitlement programs, or Streamability.WithGPU. Titles that are merely
+  // streamable another way (BYOG / free-to-play like Fortnite) carry none
+  // of these and get no badge. No evidence -> no badge.
   const offerings = titleItem.XCloudOfferings;
-  let isGamePass;
+  let isGamePass = false;
   if (offerings) {
     isGamePass = Object.keys(offerings).some(key => {
       const offering = offerings[key];
@@ -37,8 +38,21 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
         offering.Programs.indexOf('GPULTIMATE') > -1
       );
     });
-  } else {
-    isGamePass = !isOwned;
+  }
+  if (
+    !isGamePass &&
+    titleItem.Streamability &&
+    titleItem.Streamability.WithGPU
+  ) {
+    isGamePass = true;
+  }
+  if (
+    !isGamePass &&
+    titleItem.details &&
+    titleItem.details.programs &&
+    titleItem.details.programs.indexOf('GPULTIMATE') > -1
+  ) {
+    isGamePass = true;
   }
 
   const handlePress = () => {
