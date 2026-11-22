@@ -193,6 +193,10 @@ function HomeScreen({navigation, route}) {
                     ),
                     [
                       {
+                        text: t('Later'),
+                        style: 'cancel',
+                      },
+                      {
                         text: t('Confirm'),
                         style: 'default',
                         onPress: () => {
