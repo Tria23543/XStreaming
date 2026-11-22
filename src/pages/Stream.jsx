@@ -587,6 +587,27 @@ function StreamScreen({navigation, route}) {
     }
   };
 
+  const applyAspectToVideo = fit => {
+    if (webviewRef.current) {
+      webviewRef.current.injectJavaScript(
+        `(function(){var v=document.querySelector('video');if(v){v.style.objectFit='${fit}';v.style.width='100%';v.style.height='100%';}true;})()`,
+      );
+    }
+  };
+
+  const handleSetAspect = (format, fit) => {
+    settings.video_format = format;
+    saveSettings(settings);
+    applyAspectToVideo(fit);
+    handleCloseModal();
+  };
+
+  const handleSetResolution = value => {
+    settings.resolution = value;
+    saveSettings(settings);
+    handleCloseModal();
+  };
+
   // Virtual gamepad press
   const handleButtonPressIn = name => {
     // console.log('handleButtonPressIn:', name);
@@ -778,7 +799,7 @@ function StreamScreen({navigation, route}) {
                 <List.Section>
                   {connectState === CONNECTED && (
                     <List.Item
-                      title={t('Toggle Performance')}
+                      title={t('Toggle Stats')}
                       background={background}
                       onPress={() => {
                         if (settings.gamepad_kernal === 'Web') {
@@ -796,17 +817,87 @@ function StreamScreen({navigation, route}) {
                     />
                   )}
 
-                  {connectState === CONNECTED &&
-                    settings.gamepad_kernal === 'Native' && (
-                      <List.Item
-                        title={t('Toggle Virtual Gamepad')}
-                        background={background}
-                        onPress={() => {
-                          requestVirtualGamepad();
-                          handleCloseModal();
-                        }}
-                      />
-                    )}
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={t('Aspect ratio') + ': Fit'}
+                      background={background}
+                      onPress={() => {
+                        handleSetAspect('', 'contain');
+                      }}
+                    />
+                  )}
+
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={t('Aspect ratio') + ': ' + t('Stretch')}
+                      background={background}
+                      onPress={() => {
+                        handleSetAspect('Stretch', 'fill');
+                      }}
+                    />
+                  )}
+
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={t('Aspect ratio') + ': ' + t('Zoom')}
+                      background={background}
+                      onPress={() => {
+                        handleSetAspect('Zoom', 'cover');
+                      }}
+                    />
+                  )}
+
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={'Resolution: 720P (next stream)'}
+                      background={background}
+                      onPress={() => {
+                        handleSetResolution(720);
+                      }}
+                    />
+                  )}
+
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={'Resolution: 1080P (next stream)'}
+                      background={background}
+                      onPress={() => {
+                        handleSetResolution(1080);
+                      }}
+                    />
+                  )}
+
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={'Resolution: 1080P HQ (next stream)'}
+                      background={background}
+                      onPress={() => {
+                        handleSetResolution(1081);
+                      }}
+                    />
+                  )}
+
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={t('Display')}
+                      background={background}
+                      onPress={() => {
+                        setShowDisplayModal(true);
+                        handleCloseModal();
+                      }}
+                    />
+                  )}
+
+                  {connectState === CONNECTED && (
+                    <List.Item
+                      title={t('Toggle Virtual Gamepad')}
+                      background={background}
+                      onPress={() => {
+                        requestVirtualGamepad();
+                        handleCloseModal();
+                      }}
+                    />
+                  )}
 
                   {connectState === CONNECTED && (
                     <List.Item
