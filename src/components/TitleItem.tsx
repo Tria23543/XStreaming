@@ -16,6 +16,12 @@ type Props = {
 const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
   const [loading, setLoading] = React.useState(true);
 
+  const isOwned =
+    !titleItem.XCloudTitleId &&
+    titleItem.details &&
+    titleItem.details.programs &&
+    titleItem.details.programs.indexOf('BYOG') > -1;
+
   const handlePress = () => {
     onPress && onPress(titleItem);
   };
@@ -38,6 +44,15 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
           onLoad={() => setLoading(false)}
           style={styles.image}
         />
+        {isOwned ? (
+          <View style={[styles.badge, styles.badgeOwned]}>
+            <Text style={styles.badgeText}>OWNED</Text>
+          </View>
+        ) : (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>GAME PASS</Text>
+          </View>
+        )}
         <View style={styles.descriptionContainer}>
           <Text
             style={styles.description}
@@ -73,6 +88,24 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  badge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    zIndex: 2,
+    backgroundColor: '#107C10',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeOwned: {
+    backgroundColor: '#595959',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: 'bold',
   },
 });
