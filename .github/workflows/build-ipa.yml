@@ -27,6 +27,9 @@ jobs:
           cd ios
           pod install
 
+      - name: Bundle the JavaScript
+        run: yarn bundle:ios
+
       - name: Build the app (no signing)
         run: |
           cd ios
