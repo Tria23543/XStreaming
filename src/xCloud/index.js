@@ -697,6 +697,25 @@ export default class XcloudApi {
     });
   }
 
+  // Get a curated catalog gallery list (same gallery system xbox.com/play
+  // uses for Popular, Leaving soon, Mouse and keyboard, ...)
+  getSiglTitles(siglId) {
+    return new Promise((resolve, reject) => {
+      axios
+        .get(
+          'https://catalog.gamepass.com/sigls/v2?id=' +
+            siglId +
+            '&market=US&language=en-US',
+        )
+        .then(res => {
+          resolve(res.data);
+        })
+        .catch(e => {
+          resolve([]);
+        });
+    });
+  }
+
   // Get recently play games of user
   getRecentTitles() {
     return new Promise((resolve, reject) => {
