@@ -22,6 +22,25 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
     titleItem.details.programs &&
     titleItem.details.programs.indexOf('BYOG') > -1;
 
+  // A game is only "Game Pass" if Microsoft's catalog data for it carries
+  // the GPULTIMATE program (included with Game Pass Ultimate). Titles that
+  // are merely streamable some other way (e.g. BYOG / free-to-play like
+  // Fortnite) do not have it and must not get the badge.
+  const offerings = titleItem.XCloudOfferings;
+  let isGamePass;
+  if (offerings) {
+    isGamePass = Object.keys(offerings).some(key => {
+      const offering = offerings[key];
+      return (
+        offering &&
+        offering.Programs &&
+        offering.Programs.indexOf('GPULTIMATE') > -1
+      );
+    });
+  } else {
+    isGamePass = !isOwned;
+  }
+
   const handlePress = () => {
     onPress && onPress(titleItem);
   };
@@ -48,15 +67,15 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
           onError={() => setLoading(false)}
           style={styles.image}
         />
-        {isOwned ? (
-          <View style={[styles.badge, styles.badgeOwned]}>
-            <Text style={styles.badgeText}>OWNED</Text>
-          </View>
-        ) : (
+        {isGamePass ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>GAME PASS</Text>
           </View>
-        )}
+        ) : isOwned ? (
+          <View style={[styles.badge, styles.badgeOwned]}>
+            <Text style={styles.badgeText}>OWNED</Text>
+          </View>
+        ) : null}
         <View style={styles.descriptionContainer}>
           <Text
             style={styles.description}
