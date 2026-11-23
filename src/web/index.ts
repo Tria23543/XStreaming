@@ -15,6 +15,15 @@ export default class WebApi {
     this.settings = getSettings();
   }
 
+  // Read the preferred language fresh on every call: a constructor
+  // snapshot goes stale the moment the user changes the setting.
+  getPreferredLanguage() {
+    const settings = getSettings();
+    return settings.preferred_game_language
+      ? settings.preferred_game_language
+      : 'en-US';
+  }
+
   getClaims() {
     const xui = this.webToken?.data?.DisplayClaims?.xui;
     if (!xui || !xui[0]) {
@@ -217,9 +226,7 @@ export default class WebApi {
           {
             Authorization:
               this.getAuthHeader(),
-            'Accept-Language': this.settings.preferred_game_language
-              ? this.settings.preferred_game_language
-              : 'en-US',
+            'Accept-Language': this.getPreferredLanguage(),
             'x-xbl-contract-version': 3,
             'x-xbl-client-name': 'XboxApp',
             'x-xbl-client-type': 'UWA',
@@ -254,9 +261,7 @@ export default class WebApi {
           `/users/xuid(${xid})/history/titles?orderBy=unlockTime`,
           {
             Authorization: 'XBL3.0 x=' + uhs + ';' + this.webToken.data.Token,
-            'Accept-Language': this.settings.preferred_game_language
-              ? this.settings.preferred_game_language
-              : 'en-US',
+            'Accept-Language': this.getPreferredLanguage(),
             'x-xbl-contract-version': 2,
             'x-xbl-client-name': 'XboxApp',
             'x-xbl-client-type': 'UWA',
@@ -291,9 +296,7 @@ export default class WebApi {
           `/users/xuid(${xid})/achievements?titleId=${titleId}&maxItems=1000`,
           {
             Authorization: 'XBL3.0 x=' + uhs + ';' + this.webToken.data.Token,
-            'Accept-Language': this.settings.preferred_game_language
-              ? this.settings.preferred_game_language
-              : 'en-US',
+            'Accept-Language': this.getPreferredLanguage(),
             'x-xbl-contract-version': 2,
             'x-xbl-client-name': 'XboxApp',
             'x-xbl-client-type': 'UWA',
