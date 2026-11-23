@@ -148,6 +148,14 @@ export default class XcloudApi {
               .catch(error => {
                 reject(error);
               });
+          } else {
+            // Axios resolves any 2xx; a status other than 200/202 must
+            // not leave the outer promise unsettled forever.
+            reject(
+              new Error(
+                'Streaming failed: unexpected session status ' + res.status,
+              ),
+            );
           }
         })
         .catch(e => {
@@ -204,6 +212,15 @@ export default class XcloudApi {
             case 'ReadyToConnect':
               if (this.isStoped) {
                 reject('');
+                break;
+              }
+              if (attempts >= 180) {
+                // Same cap as the provisioning branch: a session parked
+                // in ReadyToConnect must not loop forever, repeatedly
+                // exchanging the account's refresh token.
+                reject(
+                  'Streaming failed: timed out waiting for the session to become ready',
+                );
                 break;
               }
               // Do MSAL Auth
@@ -312,9 +329,25 @@ export default class XcloudApi {
               if (res.data.exchangeResponse) {
                 resolve(res.data);
               } else {
+                let sdpPolls = 0;
                 const checkInterval = setInterval(() => {
                   if (this.isStoped) {
                     clearInterval(checkInterval);
+                    return;
+                  }
+                  sdpPolls += 1;
+                  if (sdpPolls > 120) {
+                    // Mirror checkIceResponse's cap: a session that keeps
+                    // answering without an exchangeResponse must surface
+                    // an error instead of polling forever. (The isStoped
+                    // branch above still leaves the promise unsettled on
+                    // purpose after teardown.)
+                    clearInterval(checkInterval);
+                    reject(
+                      new Error(
+                        '[sendSDPOffer] timed out waiting for the SDP answer',
+                      ),
+                    );
                     return;
                   }
                   axios
@@ -396,8 +429,16 @@ export default class XcloudApi {
 
             // Find Teredo Address and extract remote ip
             for (const candidate in exchangeIce) {
-              const candidateAddress =
-                exchangeIce[candidate].candidate.split(' ');
+              const rawCandidate = exchangeIce[candidate]
+                ? exchangeIce[candidate].candidate
+                : null;
+              if (typeof rawCandidate !== 'string') {
+                // Entries without a candidate string can't be parsed;
+                // they are still passed through below.
+                computedCandidates.push(exchangeIce[candidate]);
+                continue;
+              }
+              const candidateAddress = rawCandidate.split(' ');
               if (
                 candidateAddress.length > 4 &&
                 candidateAddress[4].substr(0, 4) === '2001'
@@ -436,12 +477,20 @@ export default class XcloudApi {
 
             const lst = [];
             for (let item of computedCandidates) {
+              if (!item || typeof item.candidate !== 'string') {
+                continue;
+              }
               if (item.candidate === 'a=end-of-candidates') {
                 continue;
               }
 
-              const groups = pattern.exec(item.candidate).groups;
-              lst.push(groups);
+              const match = pattern.exec(item.candidate);
+              if (!match) {
+                // One malformed candidate must not reject the whole
+                // exchange; skip it and keep the usable candidates.
+                continue;
+              }
+              lst.push(match.groups);
             }
 
             // PerferIPV6
@@ -668,43 +717,74 @@ export default class XcloudApi {
         const mergeProductIds = [
           ...new Set([...productIdQueue, ...officialTitles]),
         ];
-        // Hydrate in chunks and report progress after each chunk, so the
-        // library screen can fill in progressively instead of waiting for
-        // one giant request covering thousands of products.
+        // Hydrate in chunks of 200, fetched in parallel batches of 4,
+        // reporting progress after each batch so the library screen can
+        // fill in progressively. A chunk that fails is retried once; a
+        // chunk that fails twice is skipped and hydration continues with
+        // the rest instead of failing the whole library.
         const mergedById = {};
         const CHUNK_SIZE = 200;
-        try {
-          for (let i = 0; i < mergeProductIds.length; i += CHUNK_SIZE) {
-            const chunk = mergeProductIds.slice(i, i + CHUNK_SIZE);
-            const res = await axios.post(
-              'https://catalog.gamepass.com/v3/products?market=US&language=en-US&hydration=RemoteLowJade0',
-              {
-                Products: chunk,
-              },
-              {
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                  'ms-cv': 0,
-                  'calling-app-name': 'Xbox Cloud Gaming Web',
-                  'calling-app-version': '24.17.63',
+        const BATCH_SIZE = 4;
+        const chunks = [];
+        for (let i = 0; i < mergeProductIds.length; i += CHUNK_SIZE) {
+          chunks.push(mergeProductIds.slice(i, i + CHUNK_SIZE));
+        }
+        const fetchChunk = async chunk => {
+          let lastError = null;
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const res = await axios.post(
+                'https://catalog.gamepass.com/v3/products?market=US&language=en-US&hydration=RemoteLowJade0',
+                {
+                  Products: chunk,
                 },
-              },
+                {
+                  headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'ms-cv': 0,
+                    'calling-app-name': 'Xbox Cloud Gaming Web',
+                    'calling-app-version': '24.17.63',
+                  },
+                },
+              );
+              return res;
+            } catch (e) {
+              lastError = e;
+            }
+          }
+          throw lastError;
+        };
+        try {
+          for (let b = 0; b < chunks.length; b += BATCH_SIZE) {
+            const batch = chunks.slice(b, b + BATCH_SIZE);
+            const results = await Promise.all(
+              batch.map(chunk =>
+                fetchChunk(chunk).catch(e => {
+                  log.info(
+                    'getGamePassProducts chunk failed twice, skipping:',
+                    (e && e.message) || e,
+                  );
+                  return null;
+                }),
+              ),
             );
-            if (res.data && res.data.Products) {
-              const products = res.data.Products;
-              for (const key in products) {
-                if (v2TitleMap[key]) {
-                  mergedById[key] = {
-                    productId: key,
-                    ...products[key],
-                    ...v2TitleMap[key],
-                  };
-                } else {
-                  mergedById[key] = {
-                    productId: key,
-                    ...products[key],
-                  };
+            for (const res of results) {
+              if (res && res.data && res.data.Products) {
+                const products = res.data.Products;
+                for (const key in products) {
+                  if (v2TitleMap[key]) {
+                    mergedById[key] = {
+                      productId: key,
+                      ...products[key],
+                      ...v2TitleMap[key],
+                    };
+                  } else {
+                    mergedById[key] = {
+                      productId: key,
+                      ...products[key],
+                    };
+                  }
                 }
               }
             }
