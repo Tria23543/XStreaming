@@ -23,9 +23,15 @@ export const ReactNativeJoystick = ({
   const [x, setX] = useState(wrapperRadius - nippleRadius);
   const [y, setY] = useState(wrapperRadius - nippleRadius);
 
-  const handleTouchMove = useCallback(
-    (event: GestureTouchEvent) => {
-      const e = event.changedTouches[0];
+  // One computation for both start and move: a start used to report
+  // a zeroed event, so a thumb landing already deflected registered
+  // as centred until the first move event arrived.
+  const emitTouch = useCallback(
+    (event: GestureTouchEvent, type: 'start' | 'move') => {
+      const e = event.changedTouches && event.changedTouches[0];
+      if (!e) {
+        return;
+      }
       const fingerX = e.x;
       const fingerY = e.y;
       let coordinates = {
@@ -83,25 +89,39 @@ export const ReactNativeJoystick = ({
       setX(coordinates.x);
       setY(coordinates.y);
 
-      onMove &&
-        onMove({
-          dist: {
-            x: distX / wrapperRadius,
-            y: distY / wrapperRadius,
-          },
-          position: coordinates,
-          angle: {
-            radian: utils.degreesToRadians(angle),
-            degree: angle,
-          },
-          force,
-          type: 'move',
-        });
+      const payload = {
+        dist: {
+          x: distX / wrapperRadius,
+          y: distY / wrapperRadius,
+        },
+        position: coordinates,
+        angle: {
+          radian: utils.degreesToRadians(angle),
+          degree: angle,
+        },
+        force,
+        type,
+      };
+      if (type === 'start') {
+        onStart && onStart(payload);
+      } else {
+        onMove && onMove(payload);
+      }
     },
-    [nippleRadius, wrapperRadius, onMove],
+    [nippleRadius, wrapperRadius, onMove, onStart],
   );
 
-  const handleTouchEnd = () => {
+  const handleTouchMove = useCallback(
+    (event: GestureTouchEvent) => emitTouch(event, 'move'),
+    [emitTouch],
+  );
+
+  const handleTouchStart = useCallback(
+    (event: GestureTouchEvent) => emitTouch(event, 'start'),
+    [emitTouch],
+  );
+
+  const handleTouchEnd = useCallback(() => {
     setX(wrapperRadius - nippleRadius);
     setY(wrapperRadius - nippleRadius);
     onStop &&
@@ -121,35 +141,23 @@ export const ReactNativeJoystick = ({
         },
         type: 'stop',
       });
-  };
+  }, [nippleRadius, wrapperRadius, onStop]);
 
-  const handleTouchStart = (event: any) => {
-    onStart &&
-      onStart({
-        force: 0,
-        dist: {
-          x: 0,
-          y: 0,
-        },
-        position: {
-          x: 0,
-          y: 0,
-        },
-        angle: {
-          radian: 0,
-          degree: 0,
-        },
-        type: 'start',
-      });
-  };
-
-  const panGesture = Gesture.Pan()
-    .minDistance(0)
-    .onStart(handleTouchStart)
-    // onFinalize alone: it fires after a normal end AND on cancellation,
-    // so handleTouchEnd runs exactly once per gesture.
-    .onFinalize(handleTouchEnd)
-    .onTouchesMove(handleTouchMove);
+  // Memoised: rebuilding the gesture object on every render (which
+  // is every touch-move frame, since the knob position is state)
+  // made GestureDetector tear down and re-register the recogniser
+  // continuously.
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(0)
+        .onStart(handleTouchStart)
+        // onFinalize alone: it fires after a normal end AND on cancellation,
+        // so handleTouchEnd runs exactly once per gesture.
+        .onFinalize(handleTouchEnd)
+        .onTouchesMove(handleTouchMove),
+    [handleTouchStart, handleTouchEnd, handleTouchMove],
+  );
   // The StyleSheet itself is static per radius/colour: it used to be
   // recreated on every touch-move because the knob transform (x/y)
   // was baked into it. The transform is applied separately now.
@@ -162,7 +170,10 @@ export const ReactNativeJoystick = ({
           borderRadius: radius,
           backgroundColor: `${color}55`,
           transform: [{rotateX: '180deg'}],
-          ...(style && typeof style === 'object' ? style : {}),
+          // Flatten first: a style ARRAY (which callers may pass)
+          // spread into an object would produce numeric keys and
+          // silently lose every real property.
+          ...(style ? StyleSheet.flatten(style) : {}),
         },
         nipple: {
           height: 2 * nippleRadius,

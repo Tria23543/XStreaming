@@ -44,5 +44,6 @@ export const findCoord = (
   b.x = position.x + distance * Math.cos(angle);
   b.y = position.y + distance * Math.sin(angle);
   if (b.y < 0) b.y = 0;
+  if (b.x < 0) b.x = 0;
   return b;
 };
