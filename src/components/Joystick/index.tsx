@@ -111,19 +111,32 @@ export const ReactNativeJoystick = ({
     [nippleRadius, wrapperRadius, onMove, onStart],
   );
 
+  // Whether the current gesture actually started: onFinalize (which
+  // drives handleTouchEnd) also fires when a gesture FAILED before
+  // starting, and a stop emitted then would centre a stick the touch
+  // never owned. The same guard GamepadButton uses.
+  const startedRef = React.useRef(false);
+
   const handleTouchMove = useCallback(
     (event: GestureTouchEvent) => emitTouch(event, 'move'),
     [emitTouch],
   );
 
   const handleTouchStart = useCallback(
-    (event: GestureTouchEvent) => emitTouch(event, 'start'),
+    (event: GestureTouchEvent) => {
+      startedRef.current = true;
+      emitTouch(event, 'start');
+    },
     [emitTouch],
   );
 
   const handleTouchEnd = useCallback(() => {
     setX(wrapperRadius - nippleRadius);
     setY(wrapperRadius - nippleRadius);
+    if (!startedRef.current) {
+      return;
+    }
+    startedRef.current = false;
     onStop &&
       onStop({
         force: 0,
