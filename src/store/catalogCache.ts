@@ -39,17 +39,38 @@ export type CatalogCache = {
 // isFreeInStore) lives on it.
 const projectTitle = (item: any) => ({
   productId: item.productId,
-  ProductTitle: item.ProductTitle,
-  PublisherName: item.PublisherName,
+  // Normalise the fields the Cloud screen dereferences as specific
+  // types: a truthy non-string ProductTitle throws in its keyword
+  // filter and a truthy non-array Categories throws in its genre
+  // memo. Microsoft's API returns the right types, but a corrupt or
+  // hand-edited entry must degrade, not crash the render.
+  ProductTitle:
+    typeof item.ProductTitle === 'string' ? item.ProductTitle : '',
+  PublisherName:
+    typeof item.PublisherName === 'string' ? item.PublisherName : '',
   Image_Tile: item.Image_Tile ? {URL: item.Image_Tile.URL} : item.Image_Tile,
   Image_Poster: item.Image_Poster
     ? {URL: item.Image_Poster.URL}
     : item.Image_Poster,
-  Categories: item.Categories,
+  Categories: Array.isArray(item.Categories) ? item.Categories : [],
   XCloudTitleId: item.XCloudTitleId,
   titleId: item.titleId,
   details: item.details,
 });
+
+// Cheap fingerprint of the projected titles, stored in the meta. The
+// two storage writes are not atomic: an interruption between them can
+// pair NEW titles with the PREVIOUS meta, whose owner attests to the
+// old titles. The fingerprint lets the read side detect that torn
+// pairing instead of trusting the mismatched owner.
+const titlesFingerprint = (titles: any[]): string => {
+  const ids = titles.map(t => t.productId).join('|');
+  let hash = 0;
+  for (let i = 0; i < ids.length; i++) {
+    hash = (hash * 31 + ids.charCodeAt(i)) | 0;
+  }
+  return titles.length + ':' + hash;
+};
 
 export const emptySections = (): CatalogSections => ({
   popular: [],
@@ -84,16 +105,23 @@ export const saveCatalogCache = (
     // Build both payloads first, then write the meta LAST: the meta
     // is the commit point. Titles are written first, so an
     // interruption mid-save pairs the NEW titles with the PREVIOUS
-    // meta — the stale savedAt forces a refetch and the stale
-    // sections/owner are validated defensively on load, so that
-    // pairing is safe. The reverse order would be the dangerous one:
-    // a fresh meta (fresh timestamp, new owner) paired with old
-    // titles would present a stale catalog as fresh.
-    const titlesJson = JSON.stringify(validTitles.map(projectTitle));
+    // meta. That pairing is only MOSTLY safe: the stale savedAt
+    // forces a refetch and the sections degrade defensively on load,
+    // but the stale OWNER would attest to the old titles — if that
+    // owner is the next account to sign in, the mismatched titles
+    // could be served as theirs. The meta therefore carries a
+    // fingerprint of the titles it was written for, and the read
+    // side refuses a meta whose fingerprint does not match the
+    // titles it is paired with. The reverse write order would be
+    // worse: a fresh meta (fresh timestamp, new owner) paired with
+    // old titles would present a stale catalog as fresh.
+    const projected = validTitles.map(projectTitle);
+    const titlesJson = JSON.stringify(projected);
     const metaJson = JSON.stringify({
       savedAt: Date.now(),
       sections,
       owner: typeof owner === 'string' ? owner : null,
+      fingerprint: titlesFingerprint(projected),
     });
     storage.set(TITLES_KEY, titlesJson);
     storage.set(META_KEY, metaJson);
@@ -141,6 +169,16 @@ export const loadCatalogCache = (): CatalogCache | null => {
       return null;
     }
     if (!meta || typeof meta.savedAt !== 'number' || !meta.sections) {
+      return null;
+    }
+    // Torn-write guard: a meta carrying a fingerprint must match the
+    // titles it is stored with (see saveCatalogCache). Caches written
+    // before fingerprints existed have no field to check and are
+    // accepted; they gain one on the next save.
+    if (
+      typeof meta.fingerprint === 'string' &&
+      meta.fingerprint !== titlesFingerprint(titles)
+    ) {
       return null;
     }
     // Validate each section field's TYPE, not just its presence: a
