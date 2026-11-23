@@ -104,7 +104,7 @@ export default class Authentication {
         log.info('[checkAuthentication] No tokens are present.');
         return resolve(false);
       } catch (e) {
-        log.error('[checkAuthentication] error:', e);
+        log.error('[checkAuthentication] error:', (e && e.message) || e);
         return resolve(false);
       }
     });
@@ -156,7 +156,10 @@ export default class Authentication {
           });
         })
         .catch(error => {
-          log.error('[startSilentFlow] Silent flow error:', error);
+          // Log messages only, never whole error objects: an axios
+          // error carries its request config (payload + auth header),
+          // which for these calls means live tokens.
+          log.error('[startSilentFlow] Silent flow error:', (error && error.message) || error);
           // Never clear the token store on a silent-flow failure: a
           // transient network error must not destroy a saved login. The
           // failure is surfaced so the UI can offer a fresh login instead.
@@ -182,7 +185,7 @@ export default class Authentication {
               .catch(webError => {
                 log.error(
                   '[startSilentFlow] getWebToken after refresh error:',
-                  webError,
+                  (webError && webError.message) || webError,
                 );
                 this._notifyFailed(webError, generation);
               });
@@ -190,13 +193,13 @@ export default class Authentication {
           .catch(streamError => {
             log.error(
               '[startSilentFlow] getStreamingToken after refresh error:',
-              streamError,
+              (streamError && streamError.message) || streamError,
             );
             this._notifyFailed(streamError, generation);
           });
       })
       .catch(refreshError => {
-        log.error('[startSilentFlow] refreshTokens failed:', refreshError);
+        log.error('[startSilentFlow] refreshTokens failed:', (refreshError && refreshError.message) || refreshError);
         // Keep the saved tokens (see above): the UI offers a fresh login
         // on failure, and a successful interactive login overwrites them.
         this._notifyFailed(refreshError, generation);
@@ -241,7 +244,7 @@ export default class Authentication {
       })
       .catch(error => {
         // A failed login attempt must not destroy a previously saved login.
-        log.error('[startAuthflow] Authentication failed:', error);
+        log.error('[startAuthflow] Authentication failed:', (error && error.message) || error);
         this._notifyFailed(error, generation);
       });
   }
