@@ -3,19 +3,12 @@ import i18next from '../../i18n';
 const {t} = i18next;
 
 const gamepad = [
-  // {
-  //   name: 'maping',
-  //   type: '',
-  //   title: t('Key mapping'),
-  //   description: t('Mapping key of gamepad'),
-  //   data: [],
-  // },
   {
     name: 'gamepad_kernal',
     type: 'radio',
-    title: t('Gamepad kernal'),
+    title: t('Gamepad kernel'),
     description: t(
-      'Select gamepad kernal, you can not use virtual gamepad in Web kernal',
+      'Select gamepad kernel, you can not use virtual gamepad in Web kernel',
     ),
     data: [
       {value: 'Native', text: 'Native'},
@@ -38,7 +31,7 @@ const gamepad = [
     name: 'vibration_mode',
     type: 'radio',
     title: t('Vibration mode'),
-    description: `${t('Native: Use native gamepad kernal to vibrate')}
+    description: `${t('Native: Use native gamepad kernel to vibrate')}
 ${t("Device: Use Phone/Pad's vibrate")}`,
     data: [
       {value: 'Native', text: t('Native')},
@@ -79,16 +72,6 @@ ${t("Device: Use Phone/Pad's vibrate")}`,
       "If your joystick's maximum value doesn't reach the expected level, you can set maximum value compensation",
     ),
     data: [],
-  },
-  {
-    name: 'short_trigger',
-    type: 'radio',
-    title: t('Short Trigger'),
-    description: t('Modify the linear trigger action to a short trigger'),
-    data: [
-      {value: true, text: t('Enable')},
-      {value: false, text: t('Disable')},
-    ],
   },
   {
     name: 'show_virtual_gamead',
