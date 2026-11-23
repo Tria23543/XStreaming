@@ -61,9 +61,10 @@ export const ReactNativeJoystick = ({
         {x: fingerX, y: fingerY},
       );
 
-      const force = dist / (nippleRadius * 2);
-
       dist = Math.min(dist, wrapperRadius);
+
+      // Compute force from the clamped distance so it can never exceed 1.
+      const force = dist / (nippleRadius * 2);
       if (dist === wrapperRadius) {
         coordinates = utils.findCoord(
           {x: wrapperRadius, y: wrapperRadius},
@@ -147,7 +148,8 @@ export const ReactNativeJoystick = ({
   const panGesture = Gesture.Pan()
     .minDistance(0)
     .onStart(handleTouchStart)
-    .onEnd(handleTouchEnd)
+    // onFinalize alone: it fires after a normal end AND on cancellation,
+    // so handleTouchEnd runs exactly once per gesture.
     .onFinalize(handleTouchEnd)
     .onTouchesMove(handleTouchMove);
   const styles = useMemo(
