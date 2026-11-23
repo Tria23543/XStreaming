@@ -1,6 +1,13 @@
 import { NativeModules } from 'react-native';
 import axios from 'axios';
 
+// Every request this module makes carries a hard timeout.
+// Axios's default is 0 (never), and a connection that stalls
+// without erroring would otherwise leave sign-in checks,
+// session starts, state polls and catalog fetches unsettled
+// forever. (A per-call timeout, where one exists, still wins.)
+const http = axios.create({timeout: 15000});
+
 import UserToken from '../tokens/usertoken';
 import SisuToken from '../tokens/sisutoken';
 import DeviceToken from '../tokens/devicetoken';
@@ -94,7 +101,7 @@ export default class Xal {
         Signature: signature,
       };
 
-      axios
+      http
         .post('https://device.auth.xboxlive.com/device/authenticate', body, {
           headers,
         })
@@ -151,7 +158,7 @@ export default class Xal {
         Signature: signature,
       };
 
-      axios
+      http
         .post('https://sisu.xboxlive.com/authenticate', body, {
           headers,
         })
@@ -253,7 +260,7 @@ export default class Xal {
         'Cache-Control': 'no-store, must-revalidate, no-cache',
       };
 
-      axios
+      http
         .post('https://login.live.com/oauth20_token.srf', body, {
           headers,
         })
@@ -279,7 +286,7 @@ export default class Xal {
         'Cache-Control': 'no-store, must-revalidate, no-cache',
       };
 
-      axios
+      http
         .post('https://login.live.com/oauth20_token.srf', body, {
           headers,
         })
@@ -312,7 +319,7 @@ export default class Xal {
         Signature: signature,
       };
 
-      axios
+      http
         .post('https://xsts.auth.xboxlive.com/xsts/authorize', body, {
           headers,
         })
@@ -354,7 +361,7 @@ export default class Xal {
         signature: signature,
       };
 
-      axios
+      http
         .post('https://sisu.xboxlive.com/authorize', body, {
           headers,
         })
@@ -406,7 +413,7 @@ export default class Xal {
         'Cache-Control': 'no-store, must-revalidate, no-cache',
       };
 
-      axios
+      http
         .post('https://login.live.com/oauth20_token.srf', body, {
           headers,
         })
@@ -454,7 +461,7 @@ export default class Xal {
         headers['x-forwarded-for'] = _settings.force_region_ip;
       }
 
-      axios
+      http
         .post(
           `https://${offering}.gssv-play-prod.xboxlive.com/v2/login/user`,
           body,
