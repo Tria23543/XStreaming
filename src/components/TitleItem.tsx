@@ -57,6 +57,11 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
 
   const badge = getTitleBadge(titleItem);
 
+  const imageUrl =
+    titleItem.Image_Tile && titleItem.Image_Tile.URL
+      ? 'https:' + titleItem.Image_Tile.URL
+      : '';
+
   const handlePress = () => {
     onPress && onPress(titleItem);
   };
@@ -64,7 +69,7 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
   return (
     <Pressable onPress={handlePress}>
       <View style={styles.card}>
-        {loading && (
+        {loading && imageUrl !== '' && (
           <ActivityIndicator
             style={styles.loadingIndicator}
             size="large"
@@ -73,10 +78,7 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
         )}
         <Image
           source={{
-            uri:
-              titleItem.Image_Tile && titleItem.Image_Tile.URL
-                ? 'https:' + titleItem.Image_Tile.URL
-                : '',
+            uri: imageUrl,
           }}
           resizeMode={'cover'}
           onLoad={() => setLoading(false)}
