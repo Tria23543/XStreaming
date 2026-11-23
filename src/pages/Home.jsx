@@ -128,7 +128,7 @@ function HomeScreen({navigation, route}) {
           const _consoles = await webApi.getConsoles();
           setConsoles(_consoles);
         } catch (e) {
-          Alert.alert(t('Error'), e);
+          Alert.alert(t('Error'), (e && e.message) || String(e));
         }
         setLoading(false);
       };
@@ -212,7 +212,7 @@ function HomeScreen({navigation, route}) {
             }
           })
           .catch(e => {
-            Alert.alert(t('Error'), e);
+            Alert.alert(t('Error'), (e && e.message) || String(e));
           });
       }
 
