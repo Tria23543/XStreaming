@@ -8,11 +8,9 @@ const log = debugFactory('web/index.ts');
 
 export default class WebApi {
   webToken: XstsToken;
-  settings: any;
 
   constructor(webToken: XstsToken) {
     this.webToken = webToken;
-    this.settings = getSettings();
   }
 
   // Read the preferred language fresh on every call: a constructor
