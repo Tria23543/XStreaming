@@ -43,6 +43,6 @@ export const findCoord = (
   angle = degreesToRadians(angle);
   b.x = position.x + distance * Math.cos(angle);
   b.y = position.y + distance * Math.sin(angle);
-  if (b.y < 0) b.y += 50;
+  if (b.y < 0) b.y = 0;
   return b;
 };

@@ -36,9 +36,6 @@ export const ReactNativeJoystick = ({
       };
 
       let distX = fingerX - startX.current;
-      if (Math.abs(distX) > 300) {
-        return;
-      }
       if (distX > 0 && distX > wrapperRadius) {
         distX = wrapperRadius;
       }
@@ -151,6 +148,7 @@ export const ReactNativeJoystick = ({
     .minDistance(0)
     .onStart(handleTouchStart)
     .onEnd(handleTouchEnd)
+    .onFinalize(handleTouchEnd)
     .onTouchesMove(handleTouchMove);
   const styles = useMemo(
     () =>
