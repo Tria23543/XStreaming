@@ -153,7 +153,9 @@ function CustomGamepadScreen({navigation, route}) {
   };
 
   const handleDelete = () => {
-    if (!title) {
+    // Gated on ready like Save and Reset: acting inside the init
+    // window would delete before initialisation has completed.
+    if (!ready || !title) {
       return;
     }
     const userSettings = getUserSettings();
