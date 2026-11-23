@@ -68,15 +68,28 @@ export const saveCatalogCache = (
   try {
     // Never let an empty result replace a good cached catalog: the
     // read side refuses to load an empty titles array, so writing one
-    // would only destroy the previous copy.
-    if (!Array.isArray(titles) || titles.length === 0) {
+    // would only destroy the previous copy. Entries are validated the
+    // same way the read side validates them: an entry without a
+    // string productId would invalidate the whole cache on next
+    // load, so such entries are dropped here instead of written.
+    const validTitles = (Array.isArray(titles) ? titles : []).filter(
+      item =>
+        item &&
+        typeof item === 'object' &&
+        typeof item.productId === 'string',
+    );
+    if (validTitles.length === 0) {
       return;
     }
     // Build both payloads first, then write the meta LAST: the meta
-    // is the commit point, so an interruption mid-save can only pair
-    // the previous meta with older titles, never new titles with a
-    // fresh timestamp they did not earn.
-    const titlesJson = JSON.stringify(titles.map(projectTitle));
+    // is the commit point. Titles are written first, so an
+    // interruption mid-save pairs the NEW titles with the PREVIOUS
+    // meta — the stale savedAt forces a refetch and the stale
+    // sections/owner are validated defensively on load, so that
+    // pairing is safe. The reverse order would be the dangerous one:
+    // a fresh meta (fresh timestamp, new owner) paired with old
+    // titles would present a stale catalog as fresh.
+    const titlesJson = JSON.stringify(validTitles.map(projectTitle));
     const metaJson = JSON.stringify({
       savedAt: Date.now(),
       sections,

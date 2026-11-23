@@ -90,12 +90,31 @@ export const saveSettings = (settings: Settings) => {
 export const getSettings = (): Settings => {
   let settings = storage.getString(STORE_KEY);
   if (!settings) {
-    return defaultSettings;
+    // A copy, never the shared object itself (the nested
+    // display_options copied too): a caller mutating the returned
+    // object must not corrupt the defaults for the whole session.
+    // This is the same rule gamepadStore's getSettings follows.
+    return {
+      ...defaultSettings,
+      display_options: {...defaultSettings.display_options},
+    };
   }
   try {
     const _settings = JSON.parse(settings) as Settings;
-    return Object.assign({}, defaultSettings, _settings);
+    const merged = Object.assign({}, defaultSettings, _settings);
+    // Object.assign is shallow: a partial stored display_options
+    // (older version, partial save) would replace the whole object
+    // and hand every reader undefined fields. Merge it over the
+    // defaults instead.
+    merged.display_options = {
+      ...defaultSettings.display_options,
+      ...(_settings.display_options || {}),
+    };
+    return merged;
   } catch {
-    return defaultSettings;
+    return {
+      ...defaultSettings,
+      display_options: {...defaultSettings.display_options},
+    };
   }
 };

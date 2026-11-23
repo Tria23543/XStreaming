@@ -30,7 +30,20 @@ export const saveSettings = (name: string, params: any) => {
     }
   }
 
-  settings[name] = params;
+  // A layout named "__proto__" must become a real key: plain
+  // assignment would set the object's prototype instead, and
+  // JSON.stringify would then silently drop the layout — it would
+  // look saved and be gone on the next read.
+  if (name === '__proto__') {
+    Object.defineProperty(settings, name, {
+      value: params,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  } else {
+    settings[name] = params;
+  }
 
   storage.set(STORE_KEY, JSON.stringify(settings));
 };
