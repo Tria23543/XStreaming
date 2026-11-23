@@ -28,11 +28,10 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install SDK components
-        run: sdkmanager "platforms;android-33" "build-tools;33.0.0" "ndk;23.1.7779620"
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-33" "build-tools;33.0.0" "ndk;23.1.7779620"
 
       - name: Prepare release signing (project debug key)
         run: cp android/app/debug.keystore android/app/xstreaming-release-key.keystore
