@@ -119,7 +119,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingIndicator: {
+    // Stretched over the image area (150 tall, full card width) so
+    // the spinner sits in the middle of the picture instead of the
+    // card's top-left corner — the same fix TitleItem got.
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 1,
   },
   image: {

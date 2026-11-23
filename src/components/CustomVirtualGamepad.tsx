@@ -62,7 +62,16 @@ const CustomVirtualGamepad: React.FC<Props> = ({
         seen.add(b.name);
         validSaved.push({
           ...b,
-          scale: Number.isFinite(b.scale) && b.scale > 0 ? b.scale : 1,
+          // Clamped from above as well as validated from below: any
+          // positive finite value used to pass, so a corrupt or
+          // hand-edited layout (scale 1e6, width 1e9) could render a
+          // screen-filling, layout-breaking button. The editor caps
+          // scale at 4 and defaults stay under 100px, so these
+          // ceilings never bind a legitimate layout.
+          scale:
+            Number.isFinite(b.scale) && b.scale > 0
+              ? Math.min(b.scale, 10)
+              : 1,
           show: typeof b.show === 'boolean' ? b.show : true,
           // width/height are geometry too: a corrupt stored value
           // (a string, NaN, null) reached the D-pad's size maths
@@ -70,9 +79,13 @@ const CustomVirtualGamepad: React.FC<Props> = ({
           // Anything that is not a positive finite number becomes
           // undefined, so the renderers' own defaults apply.
           width:
-            Number.isFinite(b.width) && b.width > 0 ? b.width : undefined,
+            Number.isFinite(b.width) && b.width > 0
+              ? Math.min(b.width, 1000)
+              : undefined,
           height:
-            Number.isFinite(b.height) && b.height > 0 ? b.height : undefined,
+            Number.isFinite(b.height) && b.height > 0
+              ? Math.min(b.height, 1000)
+              : undefined,
         });
       });
     }
