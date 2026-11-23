@@ -36,15 +36,23 @@ export default class Xal {
     XalManager.init && XalManager.init();
   }
 
-  // 递归获取设备 token（遇 400 自动重试）
-  getDeviceTokenHack() {
+  // 获取设备 token（遇 400 自动重试，最多 5 次，避免无限递归）
+  getDeviceTokenHack(retriesLeft = 5) {
     return new Promise((resolve, reject) => {
       this.getDeviceToken()
         .then(resolve)
         .catch(error => {
-          if (error.statuscode === 400) {
-            log.info('getDeviceToken error, retrying...');
-            return this.getDeviceTokenHack().then(resolve).catch(reject);
+          const status = error?.response?.status || error?.statuscode;
+          if (status === 400 && retriesLeft > 0) {
+            log.info(
+              `getDeviceToken error 400, retrying (${retriesLeft} left)...`,
+            );
+            setTimeout(() => {
+              this.getDeviceTokenHack(retriesLeft - 1)
+                .then(resolve)
+                .catch(reject);
+            }, 300);
+            return;
           }
           reject(error);
         });
@@ -92,7 +100,7 @@ export default class Xal {
         })
         .then(res => resolve(new DeviceToken(res.data)))
         .catch(e => {
-          log.error('[getDeviceToken] error:', e);
+          log.error('[getDeviceToken] error:', e?.message || e);
           reject(e);
         });
     });
@@ -154,7 +162,7 @@ export default class Xal {
           });
         })
         .catch(e => {
-          log.error('[doSisuAuthentication] error:', e);
+          log.error('[doSisuAuthentication] error:', e?.message || e);
           reject(e);
         });
     });
@@ -234,7 +242,7 @@ export default class Xal {
         })
         .then(res => resolve(new UserToken(res.data)))
         .catch(e => {
-          log.error('[exchangeCodeForToken] error:', e);
+          log.error('[exchangeCodeForToken] error:', e?.message || e);
           reject(e);
         });
     });
@@ -357,7 +365,7 @@ export default class Xal {
       tokenStore.save();
       return { userToken, deviceToken, sisuToken };
     } catch (error) {
-      log.error('[refreshTokens] error:', error);
+      log.error('[refreshTokens] error:', error?.message || error);
       throw error;
     }
   }
@@ -460,14 +468,14 @@ export default class Xal {
           'xgpuweb',
         );
       } catch (error) {
-        log.error('[getStreamingToken] xgpuweb error:', error);
+        log.error('[getStreamingToken] xgpuweb error:', error?.message || error);
         try {
           this._xcloudToken = await this.getStreamToken(
             xstsToken,
             'xgpuwebf2p',
           );
         } catch (e) {
-          log.error('[getStreamingToken] fallback error:', e);
+          log.error('[getStreamingToken] fallback error:', e?.message || e);
           throw e;
         }
       }

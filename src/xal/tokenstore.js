@@ -1,4 +1,4 @@
-import {storage} from '../store/mmkv';
+import {storage, tokenStorage} from '../store/mmkv';
 import SisuToken from '../tokens/sisutoken';
 import UserToken from '../tokens/usertoken';
 
@@ -10,20 +10,38 @@ export default class TokenStore {
   _tokenUpdateTime;
 
   load() {
-    let tokens = '{}';
+    let tokens = null;
     try {
-      tokens = storage.getString(STORE_KEY);
-      if (!tokens) {
-        tokens = '{}';
-      }
+      tokens = tokenStorage.getString(STORE_KEY);
     } catch {}
-    this.loadJson(tokens);
+    if (!tokens) {
+      // Migrate tokens saved by older versions in the plaintext store.
+      try {
+        const legacy = storage.getString(STORE_KEY);
+        if (legacy) {
+          tokenStorage.set(STORE_KEY, legacy);
+          storage.delete(STORE_KEY);
+          tokens = legacy;
+        }
+      } catch {}
+    }
+    this.loadJson(tokens || '{}');
 
     return true;
   }
 
   loadJson(json) {
-    const jsonData = JSON.parse(json);
+    let jsonData = {};
+    try {
+      jsonData = JSON.parse(json);
+    } catch (e) {
+      // Corrupted stored data must not hang the login check; treat it as
+      // "no tokens" so the user is asked to log in again.
+      this._userToken = undefined;
+      this._sisuToken = undefined;
+      this._tokenUpdateTime = 0;
+      return false;
+    }
 
     if (jsonData.userToken) {
       this._userToken = new UserToken(jsonData.userToken);
@@ -69,18 +87,19 @@ export default class TokenStore {
   }
 
   save() {
+    this._tokenUpdateTime = Date.now();
     const data = JSON.stringify({
       userToken: this._userToken?.data,
       sisuToken: this._sisuToken?.data,
-      tokenUpdateTime: Date.now(),
+      tokenUpdateTime: this._tokenUpdateTime,
     });
 
-    storage.set(STORE_KEY, data);
+    tokenStorage.set(STORE_KEY, data);
   }
 
   clear() {
     try {
-      storage.delete(STORE_KEY);
+      tokenStorage.delete(STORE_KEY);
     } catch (e) {
       console.log('clear error: ', e);
     }
@@ -90,13 +109,14 @@ export default class TokenStore {
   }
 
   clearTokenUpdateTime() {
+    this._tokenUpdateTime = 0;
     const data = JSON.stringify({
       userToken: this._userToken?.data,
       sisuToken: this._sisuToken?.data,
       tokenUpdateTime: 0,
     });
 
-    storage.set(STORE_KEY, data);
+    tokenStorage.set(STORE_KEY, data);
   }
 
   hasValidAuthTokens() {
@@ -109,7 +129,7 @@ export default class TokenStore {
     }
 
     if (this._sisuToken) {
-      if (!this._userToken.isValid()) {
+      if (!this._sisuToken.isValid()) {
         return false;
       }
     } else {
