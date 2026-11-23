@@ -13,50 +13,43 @@ type Props = {
   onPress: (titleItem: any) => {};
 };
 
-// Which badge a title gets, decided from the data that actually separates
-// titles for THIS user:
-// - The user's own entitled titles (from their signed-in titles list) carry
-//   `details`; titles merged in from the public catalog only do not.
-// - details.programs containing BYOG marks a game the user owns
-//   ("Stream your own game").
-// - An entitled title that is not owned and is not flagged free-to-play
-//   (F2P in the catalog offerings, e.g. Fortnite) is playable through the
-//   user's Game Pass subscription: "Included with Game Pass".
-// The public catalog's GPULTIMATE offering tag is deliberately NOT used:
-// in Microsoft's live catalog every cloud title carries it, including
-// free-to-play and purchase-only games (verified against the live catalog).
-export function getTitleBadge(titleItem: any): 'GP' | 'OWNED' | null {
-  if (!titleItem) {
+// Which badge a title gets. The /v2/titles response is NOT an entitlement
+// list: it returns the whole cloud catalog with per-user flags on every
+// entry (this is why counting titles that merely have `details` gave
+// 2,812). The per-user truth is carried on each entry's `details` object:
+// - `details.programs` containing BYOG (and no XCloudTitleId) marks a game
+//   the user owns ("Stream your own game") — the app's original rule.
+// - `details.isFreeInStore` marks a free-to-play game (e.g. Fortnite):
+//   playable by everyone, not "included with a subscription".
+// - `details.hasEntitlement` is Microsoft's own per-user flag for "this
+//   user can play this title" — the same flag the Xbox website's
+//   "Included in your subscription" state is based on, and the filter
+//   other clients (e.g. Greenlight) use for their Game Pass library.
+// A title with none of these needs to be purchased before it can stream.
+export function getTitleBadge(
+  titleItem: any,
+): 'GP' | 'OWNED' | 'FREE' | null {
+  if (!titleItem || !titleItem.details) {
     return null;
   }
-  const programs =
-    (titleItem.details && titleItem.details.programs) || [];
+  const programs = titleItem.details.programs || [];
   const isOwned =
     !titleItem.XCloudTitleId && programs.indexOf('BYOG') > -1;
   if (isOwned) {
     return 'OWNED';
   }
-  if (!titleItem.details) {
-    return null;
+  if (titleItem.details.isFreeInStore) {
+    return 'FREE';
   }
-  const offerings = titleItem.XCloudOfferings;
-  if (offerings) {
-    let isF2P = false;
-    Object.keys(offerings).forEach(key => {
-      const offering = offerings[key];
-      if (
-        offering &&
-        offering.Programs &&
-        offering.Programs.indexOf('F2P') > -1
-      ) {
-        isF2P = true;
-      }
-    });
-    if (isF2P) {
-      return null;
-    }
+  if (titleItem.details.hasEntitlement) {
+    return 'GP';
   }
-  return 'GP';
+  return null;
+}
+
+// Whether the signed-in user can actually stream this title right now.
+export function isEntitled(titleItem: any): boolean {
+  return getTitleBadge(titleItem) !== null;
 }
 
 const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
