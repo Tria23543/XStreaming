@@ -57,15 +57,19 @@ export const deleteSetting = (name: string) => {
 export const getSettings = (): any => {
   let settings = storage.getString(STORE_KEY);
   if (!settings) {
-    return defaultSettings;
+    // A copy, never the shared object itself: several callers assign
+    // into the returned settings before saving, and handing out the
+    // module-level defaults would let one caller's writes silently
+    // become every later caller's "defaults".
+    return {...defaultSettings};
   }
   try {
     const _settings = JSON.parse(settings);
     if (!_settings || typeof _settings !== 'object' || Array.isArray(_settings)) {
-      return defaultSettings;
+      return {...defaultSettings};
     }
     return _settings;
   } catch {
-    return defaultSettings;
+    return {...defaultSettings};
   }
 };

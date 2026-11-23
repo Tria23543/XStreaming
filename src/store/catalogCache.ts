@@ -27,6 +27,10 @@ export type CatalogCache = {
   savedAt: number;
   titles: any[];
   sections: CatalogSections;
+  // The account that fetched this catalog (user hash from the web
+  // token), or null for caches written before owner tracking existed.
+  // The entitlement flags belong to that account alone.
+  owner: string | null;
 };
 
 // Only the fields the Cloud screen, TitleItem and TitleDetail actually
@@ -59,6 +63,7 @@ export const emptySections = (): CatalogSections => ({
 export const saveCatalogCache = (
   titles: any[],
   sections: CatalogSections,
+  owner: string | null = null,
 ): void => {
   try {
     // Never let an empty result replace a good cached catalog: the
@@ -72,7 +77,11 @@ export const saveCatalogCache = (
     // the previous meta with older titles, never new titles with a
     // fresh timestamp they did not earn.
     const titlesJson = JSON.stringify(titles.map(projectTitle));
-    const metaJson = JSON.stringify({savedAt: Date.now(), sections});
+    const metaJson = JSON.stringify({
+      savedAt: Date.now(),
+      sections,
+      owner: typeof owner === 'string' ? owner : null,
+    });
     storage.set(TITLES_KEY, titlesJson);
     storage.set(META_KEY, metaJson);
   } catch (e) {
@@ -121,10 +130,21 @@ export const loadCatalogCache = (): CatalogCache | null => {
     if (!meta || typeof meta.savedAt !== 'number' || !meta.sections) {
       return null;
     }
+    // Validate each section field's TYPE, not just its presence: a
+    // stored field of the wrong type would throw in the Cloud screen's
+    // byIds mapping. A bad field degrades to an empty list instead of
+    // invalidating the whole cache.
+    const sections = emptySections();
+    (Object.keys(sections) as (keyof CatalogSections)[]).forEach(key => {
+      if (Array.isArray(meta.sections[key])) {
+        sections[key] = meta.sections[key];
+      }
+    });
     return {
       savedAt: meta.savedAt,
       titles,
-      sections: {...emptySections(), ...meta.sections},
+      sections,
+      owner: typeof meta.owner === 'string' ? meta.owner : null,
     };
   } catch (e) {
     log.info('loadCatalogCache failed:', (e && e.message) || e);
