@@ -23,6 +23,15 @@ export const ReactNativeJoystick = ({
   const [x, setX] = useState(wrapperRadius - nippleRadius);
   const [y, setY] = useState(wrapperRadius - nippleRadius);
 
+  // Whether the current gesture actually started: onFinalize (which
+  // drives handleTouchEnd) also fires when a gesture FAILED before
+  // starting, and a stop emitted then would centre a stick the touch
+  // never owned. The same guard GamepadButton uses. It is armed
+  // inside emitTouch, AFTER the touch check: arming it in
+  // handleTouchStart would also arm it for a start event carrying no
+  // touch, whose onStart payload is then never sent.
+  const startedRef = React.useRef(false);
+
   // One computation for both start and move: a start used to report
   // a zeroed event, so a thumb landing already deflected registered
   // as centred until the first move event arrived.
@@ -31,6 +40,9 @@ export const ReactNativeJoystick = ({
       const e = event.changedTouches && event.changedTouches[0];
       if (!e) {
         return;
+      }
+      if (type === 'start') {
+        startedRef.current = true;
       }
       const fingerX = e.x;
       const fingerY = e.y;
@@ -111,22 +123,13 @@ export const ReactNativeJoystick = ({
     [nippleRadius, wrapperRadius, onMove, onStart],
   );
 
-  // Whether the current gesture actually started: onFinalize (which
-  // drives handleTouchEnd) also fires when a gesture FAILED before
-  // starting, and a stop emitted then would centre a stick the touch
-  // never owned. The same guard GamepadButton uses.
-  const startedRef = React.useRef(false);
-
   const handleTouchMove = useCallback(
     (event: GestureTouchEvent) => emitTouch(event, 'move'),
     [emitTouch],
   );
 
   const handleTouchStart = useCallback(
-    (event: GestureTouchEvent) => {
-      startedRef.current = true;
-      emitTouch(event, 'start');
-    },
+    (event: GestureTouchEvent) => emitTouch(event, 'start'),
     [emitTouch],
   );
 
