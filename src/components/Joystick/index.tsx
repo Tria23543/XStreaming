@@ -1,4 +1,4 @@
-import React, {useState, useRef, useCallback, useMemo} from 'react';
+import React, {useState, useCallback, useMemo} from 'react';
 import {View, StyleSheet} from 'react-native';
 import * as utils from './utils';
 import {
@@ -22,8 +22,6 @@ export const ReactNativeJoystick = ({
 
   const [x, setX] = useState(wrapperRadius - nippleRadius);
   const [y, setY] = useState(wrapperRadius - nippleRadius);
-  const startX = useRef(0);
-  const startY = useRef(0);
 
   const handleTouchMove = useCallback(
     (event: GestureTouchEvent) => {
@@ -35,7 +33,12 @@ export const ReactNativeJoystick = ({
         y: fingerY - nippleRadius,
       };
 
-      let distX = fingerX - startX.current;
+      // Axes are measured from the CENTRE of the stick, like the
+      // knob position, angle and force below. They used to be
+      // measured from the touch-START point, so wherever the thumb
+      // landed became a dead zone of exactly that offset while the
+      // knob already showed a deflection the game never received.
+      let distX = fingerX - wrapperRadius;
       if (distX > 0 && distX > wrapperRadius) {
         distX = wrapperRadius;
       }
@@ -43,7 +46,7 @@ export const ReactNativeJoystick = ({
         distX = -wrapperRadius;
       }
 
-      let distY = fingerY - startY.current;
+      let distY = fingerY - wrapperRadius;
       if (distY > 0 && distY > wrapperRadius) {
         distY = wrapperRadius;
       }
@@ -101,8 +104,6 @@ export const ReactNativeJoystick = ({
   const handleTouchEnd = () => {
     setX(wrapperRadius - nippleRadius);
     setY(wrapperRadius - nippleRadius);
-    startX.current = 0;
-    startY.current = 0;
     onStop &&
       onStop({
         force: 0,
@@ -123,9 +124,6 @@ export const ReactNativeJoystick = ({
   };
 
   const handleTouchStart = (event: any) => {
-    startX.current = event.x;
-    startY.current = event.y;
-
     onStart &&
       onStart({
         force: 0,
@@ -152,6 +150,9 @@ export const ReactNativeJoystick = ({
     // so handleTouchEnd runs exactly once per gesture.
     .onFinalize(handleTouchEnd)
     .onTouchesMove(handleTouchMove);
+  // The StyleSheet itself is static per radius/colour: it used to be
+  // recreated on every touch-move because the knob transform (x/y)
+  // was baked into it. The transform is applied separately now.
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -169,21 +170,20 @@ export const ReactNativeJoystick = ({
           borderRadius: nippleRadius,
           backgroundColor: `${color}bb`,
           position: 'absolute',
-          transform: [
-            {
-              translateX: x,
-            },
-            {translateY: y},
-          ],
         },
       }),
-    [radius, color, nippleRadius, x, y, style],
+    [radius, color, nippleRadius, style],
   );
+
+  const nippleStyle = [
+    styles.nipple,
+    {transform: [{translateX: x}, {translateY: y}]},
+  ];
 
   return (
     <GestureDetector gesture={panGesture}>
       <View style={styles.wrapper} {...props}>
-        <View pointerEvents="none" style={styles.nipple}></View>
+        <View pointerEvents="none" style={nippleStyle}></View>
       </View>
     </GestureDetector>
   );
