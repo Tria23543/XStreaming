@@ -22,6 +22,9 @@ function TitleDetail({navigation, route}) {
     } else {
       // Reached without a title (should not happen from the library):
       // show an error with a way back instead of spinning forever.
+      // Clear any previously shown title too, or the error view —
+      // gated on there being no title — could never appear.
+      setTitleItem(null);
       setLoadFailed(true);
     }
     navigation.setOptions({
@@ -51,7 +54,10 @@ function TitleDetail({navigation, route}) {
     titleItem.details &&
     titleItem.details.programs
   ) {
-    if (titleItem.details.programs.indexOf('BYOG') > -1) {
+    if (
+      Array.isArray(titleItem.details.programs) &&
+      titleItem.details.programs.indexOf('BYOG') > -1
+    ) {
       isByorg = true;
     }
   }

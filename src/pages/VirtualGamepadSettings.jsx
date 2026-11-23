@@ -29,6 +29,10 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
   const [settings, setSettings] = React.useState([]);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const navTimer = React.useRef(null);
+  // The saved selection is loaded once, not on every focus: reloading
+  // it on each focus would silently discard a choice the user just
+  // made here whenever the screen regains focus without unmounting.
+  const valueLoadedRef = React.useRef(false);
   const isFocused = useIsFocused();
 
   React.useEffect(() => {
@@ -65,11 +69,17 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
 
     const _userSettings = getUserSettings();
     setUserSettings(_userSettings);
-    setValue(_userSettings.custom_virtual_gamepad || '');
+    if (!valueLoadedRef.current) {
+      valueLoadedRef.current = true;
+      setValue(_userSettings.custom_virtual_gamepad || '');
+    }
   }, [isFocused]);
 
   const handleSave = () => {
-    const next = {...userSettings, custom_virtual_gamepad: value};
+    // Never persist a selection that no longer exists (its layout
+    // may have been deleted in the editor): fall back to Default.
+    const validValue = value === '' || settings.includes(value) ? value : '';
+    const next = {...userSettings, custom_virtual_gamepad: validValue};
     setUserSettings(next);
     saveUserSettings(next);
     navigation.goBack();
@@ -203,6 +213,9 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 10,
+  },
+  modal: {
+    margin: 20,
   },
 });
 

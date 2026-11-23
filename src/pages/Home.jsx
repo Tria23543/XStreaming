@@ -65,6 +65,11 @@ function HomeScreen({navigation, route}) {
   // (e.g. a connectivity flap) would re-enter the interactive flow
   // with the same, already-consumed auth code.
   const consumedXalUrlRef = React.useRef(null);
+  // Set when the needRefresh param has just been consumed: clearing
+  // the param with setParams re-runs the main effect, and that re-run
+  // must not start a second full sign-in check on top of the refresh
+  // the first run just did.
+  const skipNextAuthCheckRef = React.useRef(false);
 
   const dispatch = useDispatch();
 
@@ -72,17 +77,14 @@ function HomeScreen({navigation, route}) {
   const _isFocused = React.useRef(isFocused);
   // Keep the ref in sync: it used to be frozen at its mount value, so
   // the auth/console flow would never have run if the screen had ever
-  // mounted unfocused.
+  // mounted unfocused. The ref only GATES alerts and branches inside
+  // runs triggered by the effect's real deps — a focus change by
+  // itself does not re-run the flow.
   React.useEffect(() => {
     _isFocused.current = isFocused;
   }, [isFocused]);
 
   const [fabOpen, setFabOpen] = React.useState(false);
-
-  // React.useEffect(() => {
-  //   log.info('Page loaded.');
-  //   SplashScreen.hide();
-  // });
 
   React.useEffect(() => {
     log.info('Page loaded.');
@@ -96,9 +98,23 @@ function HomeScreen({navigation, route}) {
     updateLayout();
     const subscription = Dimensions.addEventListener('change', updateLayout);
 
+    // Seed connectivity from a one-off fetch as well as the listener:
+    // until the first event lands the state still claims "online",
+    // and a sign-in failure inside that window could be misread as a
+    // token problem. And treat NetInfo's null (unknown) as connected:
+    // unknown is not offline.
+    NetInfo.fetch()
+      .then(state => {
+        const connected = state.isConnected !== false;
+        isConnectedRef.current = connected;
+        setIsConnected(connected);
+      })
+      .catch(() => {});
+
     const unsubscribe = NetInfo.addEventListener(state => {
-      isConnectedRef.current = state.isConnected;
-      setIsConnected(state.isConnected);
+      const connected = state.isConnected !== false;
+      isConnectedRef.current = connected;
+      setIsConnected(connected);
     });
 
     // One cleanup for every exit path of this effect. Returning partial
@@ -250,7 +266,13 @@ function HomeScreen({navigation, route}) {
           const _consoles = await webApi.getConsoles();
           setConsoles(_consoles);
         } catch (e) {
-          Alert.alert(tRef.current('Error'), (e && e.message) || String(e));
+          // Home stays mounted under the other tabs: raise the alert
+          // only when Home is the visible screen.
+          if (_isFocused.current) {
+            Alert.alert(tRef.current('Error'), (e && e.message) || String(e));
+          } else {
+            log.error('Fetch user info error:', (e && e.message) || e);
+          }
         }
         setLoading(false);
       };
@@ -289,6 +311,7 @@ function HomeScreen({navigation, route}) {
       } else if (route.params?.needRefresh && webTokenRef.current) {
         // Consume the flag: left in the route params it would re-fetch
         // the consoles on every later effect re-run.
+        skipNextAuthCheckRef.current = true;
         navigation.setParams({needRefresh: undefined});
         setLoading(true);
         setLoadingText(t('Fetching consoles...'));
@@ -303,6 +326,12 @@ function HomeScreen({navigation, route}) {
             log.error('GetConsoles refresh error:', (e && e.message) || e);
             setLoading(false);
           });
+      } else if (skipNextAuthCheckRef.current) {
+        // This run exists only because the needRefresh branch above
+        // cleared its param: the refresh it just did IS this run's
+        // work — a second full sign-in check on top of it would
+        // double the token and console requests on every stream exit.
+        skipNextAuthCheckRef.current = false;
       } else {
         setLoading(true);
         setLoadingText(t('Checking login status...'));
@@ -321,7 +350,11 @@ function HomeScreen({navigation, route}) {
             }
           })
           .catch(e => {
-            Alert.alert(t('Error'), (e && e.message) || String(e));
+            if (_isFocused.current) {
+              Alert.alert(t('Error'), (e && e.message) || String(e));
+            } else {
+              log.error('Check authentication error:', (e && e.message) || e);
+            }
           });
       }
 
@@ -479,7 +512,6 @@ function HomeScreen({navigation, route}) {
               numColumns={numColumns}
               key={numColumns}
               keyExtractor={(item, index) => item.id || String(index)}
-              contentContainerStyle={styles.listContainer}
               renderItem={({item}) => {
                 return (
                   <View
@@ -544,9 +576,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-  menuWrap: {
-    width: 250,
-  },
   noConsoles: {
     padding: 20,
   },
@@ -556,7 +585,6 @@ const styles = StyleSheet.create({
     paddingRight: 10,
     paddingBottom: 10,
   },
-  listContainer: {},
   consoleItem: {
     padding: 10,
   },

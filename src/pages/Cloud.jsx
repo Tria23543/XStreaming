@@ -34,11 +34,31 @@ const SIGL_LEAVING = '393f05bf-e596-4ef6-9487-6d4fa0eab987';
 const SIGL_MKB = '8fa264dd-124f-4af3-97e8-596fcdf4b486';
 const SIGL_TOUCH = '9c86f07a-f3e8-45ad-82a0-a1f759597059';
 
+// A stable per-account identity for the catalog cache, taken from the
+// web token's claims (user hash, falling back to gamertag). The cached
+// entitlement flags belong to one account; the cache records who
+// fetched it so a different account is never served the previous
+// account's library as its own.
+const catalogOwnerOf = token => {
+  try {
+    const xui =
+      token &&
+      token.data &&
+      token.data.AuthorizationToken &&
+      token.data.AuthorizationToken.DisplayClaims &&
+      token.data.AuthorizationToken.DisplayClaims.xui;
+    return (xui && xui[0] && (xui[0].uhs || xui[0].gtg)) || null;
+  } catch (e) {
+    return null;
+  }
+};
+
 function CloudScreen({navigation, route}) {
   const {t} = useTranslation();
   const theme = useTheme();
   const streamingTokens = useSelector(state => state.streamingTokens);
   const authentication = useSelector(state => state.authentication);
+  const webToken = useSelector(state => state.webToken);
 
   const [current, setCurrent] = React.useState(3);
   const [numColumns, setNumColumns] = React.useState(2);
@@ -73,6 +93,7 @@ function CloudScreen({navigation, route}) {
   // (e.g. a different account signed in) must not apply or cache its
   // results — they belong to the previous token.
   const xCloudTokenRef = React.useRef(null);
+  const webTokenRef = React.useRef(null);
   // The section ID lists behind the catalog currently on screen, kept
   // so a refresh whose curated requests partly fail can fall back to
   // the previous lists instead of wiping every section.
@@ -91,6 +112,7 @@ function CloudScreen({navigation, route}) {
   const currentTitles = React.useRef([]);
   const xCloudToken = streamingTokens.xCloudToken;
   xCloudTokenRef.current = xCloudToken;
+  webTokenRef.current = webToken;
   // Derived, not state: limited means the grace period passed and
   // there is STILL no streaming token.
   const isLimited = !xCloudToken && tokenWaitExpired;
@@ -146,9 +168,16 @@ function CloudScreen({navigation, route}) {
   // the stored section ID lists.
   const applyCatalog = React.useCallback((allTitles, sections) => {
     lastSectionsRef.current = sections;
+    // Only title-shaped entries may reach state: the genre memo, the
+    // keyword filter and the grid key extractor all dereference the
+    // raw list, so the malformed-entry skip must cover it too, not
+    // just the map built below.
+    const safeTitles = (allTitles || []).filter(
+      item => item && typeof item.productId === 'string',
+    );
     const _titleMap = {};
     const _orgTitles = [];
-    allTitles.forEach(item => {
+    safeTitles.forEach(item => {
       // Skip anything that is not a title-shaped object: one malformed
       // entry must not crash the whole screen.
       if (!item || typeof item.productId !== 'string') {
@@ -158,7 +187,7 @@ function CloudScreen({navigation, route}) {
       if (
         !item.XCloudTitleId &&
         item.details &&
-        item.details.programs &&
+        Array.isArray(item.details.programs) &&
         item.details.programs.indexOf('BYOG') > -1
       ) {
         _orgTitles.push(item);
@@ -181,7 +210,7 @@ function CloudScreen({navigation, route}) {
       });
       return mapped;
     };
-    setTitles(allTitles);
+    setTitles(safeTitles);
     setOrgTitles(_orgTitles);
     setPopularTitles(byIds(sections.popular));
     setLeavingTitles(byIds(sections.leaving));
@@ -216,7 +245,7 @@ function CloudScreen({navigation, route}) {
       pushUrls(recentByIds(sections.recentIds));
       // The "Included in your subscription" row is GP-only, so warm
       // exactly its first tiles — not a mix of every badged title.
-      pushUrls(allTitles.filter(item => getTitleBadge(item) === 'GP'));
+      pushUrls(safeTitles.filter(item => getTitleBadge(item) === 'GP'));
       pushUrls(byIds(sections.popular));
       pushUrls(byIds(sections.newIds));
       pushUrls(byIds(sections.leaving));
@@ -232,6 +261,13 @@ function CloudScreen({navigation, route}) {
   }, []);
 
   React.useEffect(() => {
+    let cancelled = false;
+    if (!route.params?.keyword) {
+      // No param keyword on this run: forget the applied one, so the
+      // same term issued again later is honoured instead of being
+      // treated as already applied.
+      appliedParamKeywordRef.current = null;
+    }
     // Apply a route-param keyword once per distinct value: this effect
     // re-runs on token changes too, and re-applying it would resurrect
     // a search the user has already cleared.
@@ -296,6 +332,19 @@ function CloudScreen({navigation, route}) {
       };
       const fail = e => {
         finish();
+        if (cancelled) {
+          return;
+        }
+        // The token changed while this fetch ran and the fetch then
+        // failed: the failure belongs to the previous token. Do not
+        // alert for it in the new session — fetch afresh for the
+        // current token instead.
+        if (xCloudTokenRef.current !== xCloudToken) {
+          if (fetchGamesRef.current) {
+            fetchGamesRef.current(background);
+          }
+          return;
+        }
         if (!background) {
           handleFetchError(e);
         } else {
@@ -353,6 +402,7 @@ function CloudScreen({navigation, route}) {
               // until the fresh one is complete. And if the token
               // changed mid-fetch, the partial data is not ours to show.
               if (
+                !cancelled &&
                 !cacheApplied.current &&
                 xCloudTokenRef.current === xCloudToken
               ) {
@@ -360,6 +410,9 @@ function CloudScreen({navigation, route}) {
               }
             })
             .then(async _titles => {
+              if (cancelled) {
+                return;
+              }
               // The token changed while this fetch ran (e.g. a
               // different account signed in): these results belong to
               // the previous token. Never show or cache them — fetch
@@ -367,7 +420,7 @@ function CloudScreen({navigation, route}) {
               if (xCloudTokenRef.current !== xCloudToken) {
                 finish();
                 if (fetchGamesRef.current) {
-                  fetchGamesRef.current(true);
+                  fetchGamesRef.current(background);
                 }
                 return;
               }
@@ -384,7 +437,26 @@ function CloudScreen({navigation, route}) {
                 );
                 return;
               }
+              // The titles land as soon as they are hydrated, with
+              // the previous sections still in place: one slow
+              // curated list must not hold the whole tab hostage
+              // while everything waits for it.
+              applyCatalog(_titles, lastSectionsRef.current);
               const aux = await auxPromise;
+              if (cancelled) {
+                return;
+              }
+              // Check the token AGAIN after the wait: the curated
+              // lists took seconds to arrive and the token may have
+              // changed meanwhile. Never stamp or cache a previous
+              // token's catalog as the current one's fresh copy.
+              if (xCloudTokenRef.current !== xCloudToken) {
+                finish();
+                if (fetchGamesRef.current) {
+                  fetchGamesRef.current(background);
+                }
+                return;
+              }
               const prev = lastSectionsRef.current;
               const sections = {
                 popular: aux[0] !== null ? aux[0] : prev.popular,
@@ -396,7 +468,11 @@ function CloudScreen({navigation, route}) {
               };
               lastFetchToken.current = xCloudToken;
               applyCatalog(_titles, sections);
-              saveCatalogCache(_titles, sections);
+              saveCatalogCache(
+                _titles,
+                sections,
+                catalogOwnerOf(webTokenRef.current),
+              );
               cacheSavedAt.current = Date.now();
               cacheApplied.current = true;
               finish();
@@ -415,10 +491,19 @@ function CloudScreen({navigation, route}) {
       if (!cacheApplied.current) {
         const cache = loadCatalogCache();
         if (cache) {
-          applyCatalog(cache.titles, cache.sections);
-          cacheApplied.current = true;
-          cacheSavedAt.current = cache.savedAt;
-          lastFetchToken.current = xCloudToken;
+          // The cached entitlements belong to the account that
+          // fetched them: serve the cache only when it is known to
+          // be this account's. When the owner is unknown on either
+          // side (a pre-owner-tracking cache, or the web token not
+          // ready yet) the cache is served and the fresh fetch that
+          // follows re-stamps it with its true owner.
+          const owner = catalogOwnerOf(webTokenRef.current);
+          if (!cache.owner || !owner || cache.owner === owner) {
+            applyCatalog(cache.titles, cache.sections);
+            cacheApplied.current = true;
+            cacheSavedAt.current = cache.savedAt;
+            lastFetchToken.current = xCloudToken;
+          }
         }
       }
       if (!cacheApplied.current) {
@@ -440,6 +525,7 @@ function CloudScreen({navigation, route}) {
     const subscription = Dimensions.addEventListener('change', updateLayout);
 
     return () => {
+      cancelled = true;
       subscription?.remove();
     };
   }, [route.params?.keyword, xCloudToken, navigation, applyCatalog, t]);
@@ -456,9 +542,14 @@ function CloudScreen({navigation, route}) {
     }
   }, []);
 
-  const handleViewDetail = titleItem => {
-    navigation.navigate('TitleDetail', {titleItem});
-  };
+  // Stable identity: TitleItem is memoised, and a fresh handler on
+  // every render would defeat the memo for every tile in every list.
+  const handleViewDetail = React.useCallback(
+    titleItem => {
+      navigation.navigate('TitleDetail', {titleItem});
+    },
+    [navigation],
+  );
 
   const scrollToTop = () => {
     flatListRef.current?.scrollToOffset({animated: true, offset: 0});
@@ -681,7 +772,7 @@ function CloudScreen({navigation, route}) {
                 />
               )}
               <Appbar.Content
-                title={view === 'home' ? 'Cloud' : currentTitleText}
+                title={view === 'home' ? t('Xcloud') : currentTitleText}
               />
               {view !== 'home' && hydrated && (
                 <Text variant="titleLarge" style={styles.appbarCount}>
@@ -889,7 +980,7 @@ function CloudScreen({navigation, route}) {
       {isLimited && (
         <View style={styles.container}>
           <View>
-            <Text style={styles.tips} category="s1">
+            <Text style={styles.tips}>
               {t('NoXGP')}
             </Text>
           </View>

@@ -7,15 +7,20 @@ import {debugFactory} from '../utils/debug';
 
 const log = debugFactory('LoginScreen');
 
-function DetailScreen({navigation, route}) {
+function LoginScreen({navigation, route}) {
   const {t} = useTranslation();
   const [authUrl, setAuthUrl] = React.useState('');
   const [loadError, setLoadError] = React.useState(false);
   const [pageLoading, setPageLoading] = React.useState(true);
   const [webviewKey, setWebviewKey] = React.useState(0);
+  // False until the params effect has run once: before that, the
+  // screen cannot yet know whether a login link is coming, and must
+  // show a loader rather than the "no login link" error.
+  const [paramsChecked, setParamsChecked] = React.useState(false);
   const redirectHandled = React.useRef(false);
 
   React.useEffect(() => {
+    setParamsChecked(true);
     if (route.params?.authUrl) {
       // Do not write the full auth URL (it carries auth parameters) to logs.
       log.info('Receive authUrl');
@@ -93,11 +98,19 @@ function DetailScreen({navigation, route}) {
           }}
         />
         {pageLoading && (
-          <View style={styles.loadingOverlay} pointerEvents="none">
+          <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#107C10" />
             <Text style={styles.loadingText}>{t('Loading...')}</Text>
           </View>
         )}
+      </View>
+    );
+  }
+
+  if (!paramsChecked) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#107C10" />
       </View>
     );
   }
@@ -145,4 +158,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DetailScreen;
+export default LoginScreen;

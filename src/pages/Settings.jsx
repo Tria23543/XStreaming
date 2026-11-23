@@ -227,9 +227,7 @@ function SettingsScreen({navigation}) {
           {profile && profile.GameDisplayName ? (
             <SettingItem
               title={t('Logout')}
-              description={`${t('Current user')}: ${
-                profile ? profile.GameDisplayName : ''
-              }`}
+              description={`${t('Current user')}: ${profile.GameDisplayName}`}
               onPress={() => handleItemPress('logout')}
             />
           ) : null}

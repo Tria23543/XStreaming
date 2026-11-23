@@ -6,7 +6,7 @@ import Empty from '../components/Empty';
 import {debugFactory} from '../utils/debug';
 import {useTranslation} from 'react-i18next';
 import moment from 'moment';
-import {useSelector, useDispatch} from 'react-redux';
+import {useSelector} from 'react-redux';
 import WebApi from '../web';
 
 const log = debugFactory('AchivementScreen');
@@ -152,6 +152,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexDirection: 'row',
     marginTop: 10,
+  },
+  score: {
+    flex: 1,
+  },
+  percent: {
+    marginLeft: 10,
   },
 });
 

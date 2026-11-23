@@ -25,14 +25,19 @@ function DisplaySettings({navigation, route}) {
   };
 
   const handleSave = () => {
-    // With untouched sliders, `options` is still the initial {} while
-    // the Display component shows its defaults: persist what the user
-    // actually sees, not the empty object. Immutable update, like the
-    // other settings pages.
-    const effectiveOptions =
-      Object.keys(options).length > 0
-        ? options
-        : {sharpness: 5, saturation: 100, contrast: 100, brightness: 100};
+    // Persist what the user actually sees: with untouched sliders
+    // `options` is still the initial {}, and a partially-filled object
+    // (an older stored shape, or one key changed) must not drop the
+    // other three values back to undefined either — merge whatever
+    // exists over the defaults. Immutable update, like the other
+    // settings pages.
+    const effectiveOptions = {
+      sharpness: 5,
+      saturation: 100,
+      contrast: 100,
+      brightness: 100,
+      ...options,
+    };
     saveSettings({...settings, display_options: effectiveOptions});
     navigation.goBack();
   };

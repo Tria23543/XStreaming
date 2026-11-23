@@ -20,10 +20,15 @@ function FriendsScreen({navigation}) {
 
   const webToken = useSelector(state => state.webToken);
 
+  // Shared with onRefresh below: the pull-to-refresh fetch needs the
+  // same unmount guard as the effect's fetches.
+  const mountedRef = React.useRef(true);
+
   React.useEffect(() => {
     // Guard the async completions: a fetch that resolves after
     // unmount must not set state on a dead screen.
     let cancelled = false;
+    mountedRef.current = true;
     setLoading(true);
     const webApi = new WebApi(webToken);
     webApi
@@ -57,6 +62,7 @@ function FriendsScreen({navigation}) {
 
     return () => {
       cancelled = true;
+      mountedRef.current = false;
       if (timer.current) {
         clearInterval(timer.current);
         timer.current = null;
@@ -66,11 +72,11 @@ function FriendsScreen({navigation}) {
 
   const drawPresence = userinfo => {
     for (const app in userinfo.presenceDetails) {
-      if (
-        userinfo.presenceDetails[app].IsGame &&
-        userinfo.presenceDetails[app].IsPrimary
-      ) {
-        return userinfo.presenceDetails[app].PresenceText;
+      // A presence entry can be null (a title with no presence): the
+      // old dereference threw and blanked the whole friends list.
+      const detail = userinfo.presenceDetails[app];
+      if (detail && detail.IsGame && detail.IsPrimary) {
+        return detail.PresenceText;
       }
     }
 
@@ -82,11 +88,15 @@ function FriendsScreen({navigation}) {
     try {
       const webApi = new WebApi(webToken);
       const _friends = await webApi.getFriends();
-      setFriends(_friends);
+      if (mountedRef.current) {
+        setFriends(_friends);
+      }
     } catch (e) {
       log.error('GetFriends refresh error:', e?.message || e);
     } finally {
-      setRefreshing(false);
+      if (mountedRef.current) {
+        setRefreshing(false);
+      }
     }
   }, [webToken]);
 

@@ -14,7 +14,6 @@ import {debugFactory} from '../utils/debug';
 import WebApi from '../web';
 import ArchivementItem from '../components/ArchivementItem';
 import Empty from '../components/Empty';
-// import mockData from '../mock/achivement';
 
 const log = debugFactory('ArchivementDetail');
 
@@ -27,9 +26,14 @@ function ArchivementDetail({navigation, route}) {
   const [archivements, setArchivements] = React.useState([]);
 
   const webToken = useSelector(state => state.webToken);
-  const flatListRef = React.useRef(null);
+  // Guards every async completion on this screen (effect fetch and
+  // pull-to-refresh alike): a fetch resolving after unmount — or
+  // after the screen moved to another title — must not set state.
+  const mountedRef = React.useRef(true);
 
   React.useEffect(() => {
+    let cancelled = false;
+    mountedRef.current = true;
     log.info('ArchivementDetail titleId:', route.params?.titleId);
     if (route.params?.titleId) {
       setLoading(true);
@@ -37,13 +41,17 @@ function ArchivementDetail({navigation, route}) {
       webApi
         .getAchivementDetail(route.params?.titleId)
         .then(data => {
-          setArchivements(data);
+          if (!cancelled) {
+            setArchivements(data);
+          }
         })
         .catch(e => {
           log.error('GetAchivementDetail error:', e?.message || e);
         })
         .finally(() => {
-          setLoading(false);
+          if (!cancelled) {
+            setLoading(false);
+          }
         });
     }
     navigation.setOptions({
@@ -57,6 +65,8 @@ function ArchivementDetail({navigation, route}) {
     const subscription = Dimensions.addEventListener('change', updateLayout);
 
     return () => {
+      cancelled = true;
+      mountedRef.current = false;
       subscription?.remove();
     };
   }, [route.params?.titleId, route.params?.name, navigation, webToken]);
@@ -69,12 +79,16 @@ function ArchivementDetail({navigation, route}) {
         const resultes = await webApi.getAchivementDetail(
           route.params.titleId,
         );
-        setArchivements(resultes);
+        if (mountedRef.current) {
+          setArchivements(resultes);
+        }
       }
     } catch (e) {
       log.error('GetAchivementDetail refresh error:', e?.message || e);
     } finally {
-      setRefreshing(false);
+      if (mountedRef.current) {
+        setRefreshing(false);
+      }
     }
   }, [webToken, route.params?.titleId]);
 
@@ -119,7 +133,6 @@ function ArchivementDetail({navigation, route}) {
       />
 
       <FlatList
-        ref={flatListRef}
         data={showArchivements}
         numColumns={numColumns}
         key={numColumns}
@@ -127,7 +140,6 @@ function ArchivementDetail({navigation, route}) {
           item && item.id ? String(item.id) : String(index)
         }
         ListEmptyComponent={!loading ? <Empty /> : null}
-        contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -151,7 +163,6 @@ const styles = StyleSheet.create({
   spinnerTextStyle: {
     color: '#107C10',
   },
-  listContainer: {},
   listItemH: {
     width: '50%',
     justifyContent: 'center',

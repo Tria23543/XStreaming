@@ -40,6 +40,10 @@ function CustomGamepadScreen({navigation, route}) {
   const [showModal, setShowModal] = React.useState(false);
   const [reloader, setReloader] = React.useState(Date.now());
 
+  // False until the delayed initialisation has loaded the buttons:
+  // before that, Save would persist an empty layout and Reset would
+  // "restore" an empty defaults list.
+  const [ready, setReady] = React.useState(false);
   const [currentButton, setCurrentButton] = React.useState('');
   const [currentScale, setCurrentScale] = React.useState(1);
   const [currentShow, setCurrentShow] = React.useState(true);
@@ -68,6 +72,7 @@ function CustomGamepadScreen({navigation, route}) {
         setButtons(_buttons);
       }
       setDefaultButtons(_buttons);
+      setReady(true);
 
       setShowWarnShowModal(true);
     }, 500);
@@ -128,18 +133,29 @@ function CustomGamepadScreen({navigation, route}) {
   };
 
   const handleSave = () => {
-    // console.log('buttons:', buttons);
+    // Before initialisation there is nothing valid to save, and
+    // without a name the layout would be stored under the '' key —
+    // the Default slot.
+    if (!ready || !title) {
+      return;
+    }
     saveSettings(title, buttons);
     navigation.navigate('VirtualGamepadSettings');
   };
 
   const handleReset = () => {
+    if (!ready) {
+      return;
+    }
     // Clone the default objects, not just the array: the working list
     // must never share objects with the defaults copy.
     setButtons(defaultButtons.map(b => ({...b})));
   };
 
   const handleDelete = () => {
+    if (!title) {
+      return;
+    }
     const userSettings = getUserSettings();
     if (userSettings.custom_virtual_gamepad === title) {
       userSettings.custom_virtual_gamepad = '';

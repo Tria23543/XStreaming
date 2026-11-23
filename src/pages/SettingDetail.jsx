@@ -48,10 +48,9 @@ function SettingDetailScreen({navigation, route}) {
 
   const streamingTokens = useSelector(state => state.streamingTokens);
   regions.current = streamingTokens.xHomeToken?.getRegions() || [];
-
-  if (streamingTokens.xCloudToken) {
-    xgpuRegions.current = streamingTokens.xCloudToken?.getRegions() || [];
-  }
+  // Symmetric with the home regions above: the old guarded assignment
+  // kept a signed-out account's regions in the ref forever.
+  xgpuRegions.current = streamingTokens.xCloudToken?.getRegions() || [];
 
   React.useEffect(() => {
     const _settings = getSettings();
@@ -110,6 +109,33 @@ function SettingDetailScreen({navigation, route}) {
       });
     }
   }, [navigation, route.params?.id]);
+
+  // The page can mount before the streaming tokens exist (Settings
+  // is reachable without a completed sign-in): the mount effect then
+  // had no regions to derive the signal-server selection from and
+  // left the value empty. When the tokens arrive later, derive the
+  // same selection the mount effect would have made — unless the
+  // user has already picked one.
+  React.useEffect(() => {
+    if (current !== 'signaling_home' && current !== 'signaling_cloud') {
+      return;
+    }
+    if (value) {
+      return;
+    }
+    const rs =
+      current === 'signaling_home' ? regions.current : xgpuRegions.current;
+    const savedVal = settings[current];
+    if (savedVal && rs.some(region => region.name === savedVal)) {
+      setValue(savedVal);
+      return;
+    }
+    rs.forEach(region => {
+      if (region.isDefault) {
+        setValue(region.name);
+      }
+    });
+  }, [streamingTokens, current, value, settings]);
 
   // Returns true only when something was actually persisted, so the
   // caller can avoid claiming "Saved" for a save the guard below
@@ -206,8 +232,7 @@ function SettingDetailScreen({navigation, route}) {
       return (
         <>
           <RadioButton.Group onValueChange={val => setValue(val)} value={value}>
-            {currentMetas &&
-              currentMetas.data.map((item, idx) => {
+            {currentMetas.data.map((item, idx) => {
                 return (
                   <RadioButton.Item
                     key={idx}
@@ -272,8 +297,7 @@ function SettingDetailScreen({navigation, route}) {
     if (currentMetas.type === 'radio') {
       return (
         <RadioButton.Group onValueChange={val => setValue(val)} value={value}>
-          {currentMetas &&
-            currentMetas.data.map((item, idx) => {
+          {currentMetas.data.map((item, idx) => {
               return (
                 <RadioButton.Item
                   key={idx}

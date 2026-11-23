@@ -147,6 +147,23 @@ function StreamScreen({navigation, route}) {
     (streamingTokens.xCloudToken || streamingTokens.xHomeToken)
   ) {
     streamTokensRef.current = streamingTokens;
+  } else if (streamTokensRef.current) {
+    // The snapshot can be captured half-empty (only one token kind
+    // had arrived) and the session effect reads it as-is, so the
+    // missing kind's games could never start. Fill in a kind that
+    // was missing then — never replace a captured kind: a token of
+    // the missing kind belongs to no live session yet, so adopting
+    // it cannot swap anything mid-stream.
+    const snap = streamTokensRef.current;
+    if (
+      (!snap.xCloudToken && streamingTokens.xCloudToken) ||
+      (!snap.xHomeToken && streamingTokens.xHomeToken)
+    ) {
+      streamTokensRef.current = {
+        xCloudToken: snap.xCloudToken || streamingTokens.xCloudToken,
+        xHomeToken: snap.xHomeToken || streamingTokens.xHomeToken,
+      };
+    }
   }
   const hasStreamingTokens = !!(
     streamingTokens.xCloudToken || streamingTokens.xHomeToken
@@ -173,7 +190,6 @@ function StreamScreen({navigation, route}) {
 
   const controllerEventListener = React.useRef(undefined);
   const timer = React.useRef(undefined);
-  const isRightstickMoving = React.useRef(false);
 
   React.useEffect(() => {
     const _settings = getSettings();
@@ -251,6 +267,7 @@ function StreamScreen({navigation, route}) {
     if (route.params?.streamType) {
       log.info('Stream screen receive streamType:', route.params?.streamType);
     }
+    exitedRef.current = false;
     const tokens = streamTokensRef.current || {};
     let builtHomeApi = null;
     let builtCloudApi = null;
@@ -314,6 +331,14 @@ function StreamScreen({navigation, route}) {
         clearTimeout(finishExitTimer.current);
         finishExitTimer.current = null;
       }
+      if (timeoutExitFallbackTimer.current) {
+        clearTimeout(timeoutExitFallbackTimer.current);
+        timeoutExitFallbackTimer.current = null;
+      }
+      if (restartTimer.current) {
+        clearTimeout(restartTimer.current);
+        restartTimer.current = null;
+      }
       // Leaving without Disconnect must not orphan the session
       // server-side (the console slot stays busy until Microsoft's
       // timeout reaps it): stop the stream on the APIs this effect
@@ -360,6 +385,12 @@ function StreamScreen({navigation, route}) {
   const webviewRef = React.useRef(null);
   const exitFallbackTimer = React.useRef(null);
   const finishExitTimer = React.useRef(null);
+  const timeoutExitFallbackTimer = React.useRef(null);
+  const restartTimer = React.useRef(null);
+  // True once an exit has actually navigated away: a streamingClosed
+  // message arriving after that belongs to the finished session and
+  // must not pop its alert over the Home screen or run a second exit.
+  const exitedRef = React.useRef(false);
   const tipsShownRef = React.useRef(false);
   const connectedToastRef = React.useRef(false);
   const [webviewError, setWebviewError] = React.useState(false);
@@ -411,6 +442,7 @@ function StreamScreen({navigation, route}) {
       // route inside this half second.
       finishExitTimer.current = setTimeout(() => {
         finishExitTimer.current = null;
+        exitedRef.current = true;
         setIsExiting(false);
         Orientation.unlockAllOrientations();
         navigation.navigate({
@@ -430,11 +462,21 @@ function StreamScreen({navigation, route}) {
   };
 
   const handleTimeoutExit = () => {
+    let finished = false;
     const finishTimeoutExit = () => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      if (timeoutExitFallbackTimer.current) {
+        clearTimeout(timeoutExitFallbackTimer.current);
+        timeoutExitFallbackTimer.current = null;
+      }
       authentication &&
         authentication._tokenStore &&
         authentication._tokenStore.clearTokenUpdateTime();
-      setTimeout(() => {
+      restartTimer.current = setTimeout(() => {
+        restartTimer.current = null;
         RNRestart.restart();
       }, 100);
     };
@@ -442,6 +484,10 @@ function StreamScreen({navigation, route}) {
       finishTimeoutExit();
       return;
     }
+    // The restart must not depend on stopStream settling: a hung
+    // session request would otherwise strand the user on this screen
+    // forever, with the token-refresh restart never happening.
+    timeoutExitFallbackTimer.current = setTimeout(finishTimeoutExit, 3000);
     streamApi
       .stopStream()
       .then(finishTimeoutExit)
@@ -470,7 +516,12 @@ function StreamScreen({navigation, route}) {
     }
     const {type, message} = data || {};
     if (type === 'other') {
-      Alert.alert(String(message ?? ''));
+      // Two-argument form: a lone string becomes the alert TITLE
+      // with an empty body, and a non-string message would render
+      // as "[object Object]".
+      const otherText =
+        typeof message === 'string' ? message : JSON.stringify(message ?? '');
+      Alert.alert(t('Warning'), otherText);
     }
     // The session-flow messages dereference streamApi; if it was never
     // created (missing token/region), fail visibly instead of throwing.
@@ -499,34 +550,47 @@ function StreamScreen({navigation, route}) {
           postData2Webview('startSessionEnd', configuration);
         })
         .catch(e => {
-          if (e !== '') {
-            let msg = '';
-            if (typeof e === 'string') {
-              if (e.includes('WaitingForServerToRegister')) {
-                msg =
-                  '[StartSession] Fail:' + t('WaitingForServerToRegister') + e;
-              }
-            } else {
-              if (e.message?.indexOf('400') > -1) {
-                const error = t('noAllow');
-                msg = '[StartSession] Fail:' + error;
-              } else {
-                msg = '[StartSession] Fail:' + ((e && e.message) || String(e));
-              }
-            }
-            Alert.alert(t('Warning'), msg, [
-              {
-                text: t('Confirm'),
-                style: 'default',
-                onPress: () => {
-                  if (isExiting) {
-                    return;
-                  }
-                  navigation.navigate('Home');
-                },
-              },
-            ]);
+          // waitState rejects with '' when the session was stopped
+          // mid-start. While an exit is already in progress that is
+          // expected and stays silent; in every other case the start
+          // has failed and the user must be told — silence would
+          // leave this screen hanging on a dead picture forever.
+          if (e === '' && isExiting) {
+            return;
           }
+          let msg = '';
+          if (typeof e === 'string') {
+            if (e.includes('WaitingForServerToRegister')) {
+              msg =
+                '[StartSession] Fail:' + t('WaitingForServerToRegister') + e;
+            } else if (e !== '') {
+              // e.g. 'Streaming failed' from an unknown session
+              // state: show the reason itself instead of an alert
+              // with an empty body.
+              msg = '[StartSession] Fail:' + e;
+            } else {
+              msg = '[StartSession] Fail:' + t('Streaming is closed.');
+            }
+          } else {
+            if (e.message?.indexOf('400') > -1) {
+              const error = t('noAllow');
+              msg = '[StartSession] Fail:' + error;
+            } else {
+              msg = '[StartSession] Fail:' + ((e && e.message) || String(e));
+            }
+          }
+          Alert.alert(t('Warning'), msg, [
+            {
+              text: t('Confirm'),
+              style: 'default',
+              onPress: () => {
+                if (isExiting) {
+                  return;
+                }
+                navigation.navigate('Home');
+              },
+            },
+          ]);
         });
     }
     if (type === 'xcloudOfferReady') {
@@ -595,6 +659,12 @@ function StreamScreen({navigation, route}) {
         });
     }
     if (type === 'streamingClosed') {
+      // A late answer for a session whose exit already navigated
+      // Home: its alert would pop over the Home screen and its
+      // Confirm would run a second, redundant exit.
+      if (exitedRef.current) {
+        return;
+      }
       // The WebView answered the disconnect: the normal exit flow owns
       // leaving from here, so cancel the requestExit fallback timer.
       if (exitFallbackTimer.current) {
@@ -787,18 +857,25 @@ function StreamScreen({navigation, route}) {
     handleCloseModal();
   };
 
-  // Virtual gamepad press
+  // Virtual gamepad press. The 50 ms delayed release is tracked per
+  // button: a re-press inside that window cancels the pending
+  // zeroing — the old untracked timer fired anyway and released a
+  // button the user was already holding again.
+  const pressOutTimers = React.useRef({});
   const handleButtonPressIn = name => {
-    // console.log('handleButtonPressIn:', name);
+    if (pressOutTimers.current[name]) {
+      clearTimeout(pressOutTimers.current[name]);
+      delete pressOutTimers.current[name];
+    }
     gpState[name] = 1;
-    // if (settings.vibration) {
-    //   Vibration.vibrate(3);
-    // }
   };
 
   const handleButtonPressOut = name => {
-    setTimeout(() => {
-      // console.log('handleButtonPressOut:', name);
+    if (pressOutTimers.current[name]) {
+      clearTimeout(pressOutTimers.current[name]);
+    }
+    pressOutTimers.current[name] = setTimeout(() => {
+      delete pressOutTimers.current[name];
       gpState[name] = 0;
     }, 50);
   };
@@ -819,11 +896,6 @@ function StreamScreen({navigation, route}) {
     }
 
     if (id === 'right') {
-      if (Math.abs(leveledX) > 0 || Math.abs(leveledY) > 0) {
-        isRightstickMoving.current = true;
-      } else {
-        isRightstickMoving.current = false;
-      }
       gpState.RightThumbXAxis = Number(leveledX);
       gpState.RightThumbYAxis = Number(-leveledY);
     } else {
@@ -1220,23 +1292,10 @@ function StreamScreen({navigation, route}) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    width: 300,
-    padding: 5,
-  },
   modal: {
     // backgroundColor: 'rgba(0, 0, 0, 0.5)',
     marginLeft: '32%',
     marginRight: '32%',
-  },
-  backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  title: {
-    paddingBottom: 10,
-  },
-  content: {
-    paddingTop: 10,
   },
   quickMenu: {
     position: 'absolute',
