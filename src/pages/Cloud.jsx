@@ -45,6 +45,7 @@ function CloudScreen({navigation, route}) {
   const [popularTitles, setPopularTitles] = React.useState([]);
   const [leavingTitles, setLeavingTitles] = React.useState([]);
   const [mkbTitles, setMkbTitles] = React.useState([]);
+  const [touchTitles, setTouchTitles] = React.useState([]);
   const [customSection, setCustomSection] = React.useState(null);
 
   const currentTitles = React.useRef([]);
@@ -69,7 +70,14 @@ function CloudScreen({navigation, route}) {
         _xCloudApi.getTitles().then(res => {
           // log.info('_xCloudApi.getTitles res: ', titles);
           if (res.results) {
-            _xCloudApi.getGamePassProducts(res.results).then(_titles => {
+            _xCloudApi
+              .getGamePassProducts(res.results, partialTitles => {
+                // Progressive fill: show games as each chunk arrives
+                // instead of waiting for the whole library.
+                setTitles(partialTitles);
+                setLoading(false);
+              })
+              .then(_titles => {
               setTitles(_titles);
 
               const _titleMap = {};
@@ -113,6 +121,7 @@ function CloudScreen({navigation, route}) {
                 setLeavingTitles,
               );
               mapSigl('8fa264dd-124f-4af3-97e8-596fcdf4b486', setMkbTitles);
+              mapSigl('9c86f07a-f3e8-45ad-82a0-a1f759597059', setTouchTitles);
 
               // Get new games
               _xCloudApi.getNewTitles().then(newTitleRes => {
@@ -144,7 +153,7 @@ function CloudScreen({navigation, route}) {
                   isFetchGame.current = true;
                 });
               });
-            });
+              });
           }
         });
       }
@@ -262,7 +271,9 @@ function CloudScreen({navigation, route}) {
   if (keyword.length > 0) {
     currentTitles.current = currentTitles.current.filter(title => {
       return (
-        title.ProductTitle.toUpperCase().indexOf(keyword.toUpperCase()) > -1
+        (title.ProductTitle || '')
+          .toUpperCase()
+          .indexOf(keyword.toUpperCase()) > -1
       );
     });
   }
@@ -400,8 +411,8 @@ function CloudScreen({navigation, route}) {
                       includedTitles,
                     ),
                 )}
-                {renderSection(t('Popular'), popularTitles, () =>
-                  handleShowSection(t('Popular'), popularTitles),
+                {renderSection(t('Most popular'), popularTitles, () =>
+                  handleShowSection(t('Most popular'), popularTitles),
                 )}
                 {renderSection(t('Recently added'), newTitles, () =>
                   handleSelectCategories(1),
@@ -414,6 +425,9 @@ function CloudScreen({navigation, route}) {
                 )}
                 {renderSection(t('Mouse and keyboard'), mkbTitles, () =>
                   handleShowSection(t('Mouse and keyboard'), mkbTitles),
+                )}
+                {renderSection(t('Touch controls'), touchTitles, () =>
+                  handleShowSection(t('Touch controls'), touchTitles),
                 )}
                 {genreSections.map(cat => (
                   <React.Fragment key={cat}>
@@ -436,7 +450,15 @@ function CloudScreen({navigation, route}) {
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 value={keyword}
                 autoFocus={keyword.length > 0}
-                onChangeText={text => setKeyword(text)}
+                onChangeText={text => {
+                  setKeyword(text);
+                  if (text.length > 0 && current !== 3) {
+                    // Searching always covers the whole library, like
+                    // the website — not just the open section.
+                    setCurrent(3);
+                    setCustomSection(null);
+                  }
+                }}
               />
               {keyword.length > 0 && (
                 <Text
