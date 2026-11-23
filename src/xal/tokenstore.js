@@ -99,6 +99,10 @@ export default class TokenStore {
     this._sisuToken = new SisuToken(sisuToken.data);
   }
 
+  clearSisuToken() {
+    this._sisuToken = undefined;
+  }
+
   getSisuToken() {
     return this._sisuToken;
   }

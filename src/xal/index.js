@@ -127,7 +127,7 @@ export default class Xal {
         AppId: this._app.AppId,
         TitleId: this._app.TitleId,
         RedirectUri: this._app.RedirectUri,
-        DeviceToken: deviceToken.Token,
+        DeviceToken: deviceToken.data.Token,
         Sandbox: 'RETAIL',
         TokenType: 'code',
         Offers: ['service::user.auth.xboxlive.com::MBI_SSL'],
@@ -215,6 +215,14 @@ export default class Xal {
       codeChallange.verifier,
     );
     tokenStore.setUserToken(userToken);
+    // Drop any Sisu token already in the store before saving: it was
+    // derived from the PREVIOUS user token, and save() would otherwise
+    // persist it next to the new user token with a fresh timestamp. The
+    // silent flow would then trust it ("usable Sisu, skip refresh") and
+    // mint streaming tokens for the previous account when a different
+    // account just signed in. refreshTokens recreates the Sisu token
+    // from the new user token, so dropping it here is safe.
+    tokenStore.clearSisuToken();
     tokenStore.save();
     return true;
   }
