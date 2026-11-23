@@ -11,6 +11,7 @@ function DetailScreen({navigation, route}) {
   const {t} = useTranslation();
   const [authUrl, setAuthUrl] = React.useState('');
   const [loadError, setLoadError] = React.useState(false);
+  const [webviewKey, setWebviewKey] = React.useState(0);
   const redirectHandled = React.useRef(false);
 
   React.useEffect(() => {
@@ -43,7 +44,21 @@ function DetailScreen({navigation, route}) {
             'The login page failed to load. Please check your connection and try again.',
           )}
         </Text>
-        <Button mode="contained" onPress={() => navigation.goBack()}>
+        <Button
+          mode="contained"
+          onPress={() => {
+            // Remount the WebView (new key) and try loading again,
+            // instead of sending the user back to restart the whole
+            // login prompt from Home.
+            setLoadError(false);
+            setWebviewKey(k => k + 1);
+          }}>
+          {t('Retry')}
+        </Button>
+        <Button
+          mode="outlined"
+          style={styles.secondButton}
+          onPress={() => navigation.goBack()}>
           {t('Back')}
         </Button>
       </View>
@@ -53,6 +68,7 @@ function DetailScreen({navigation, route}) {
   if (authUrl !== '') {
     return (
       <WebView
+        key={webviewKey}
         source={{uri: authUrl}}
         originWhitelist={['*']}
         setSupportMultipleWindows={false}
@@ -96,6 +112,9 @@ const styles = StyleSheet.create({
   text: {
     textAlign: 'center',
     marginBottom: 20,
+  },
+  secondButton: {
+    marginTop: 12,
   },
 });
 

@@ -33,7 +33,6 @@ function HomeScreen({navigation, route}) {
   const [profile, setProfile] = React.useState(null);
   const [consoles, setConsoles] = React.useState([]);
   const [isConnected, setIsConnected] = React.useState(true);
-  const [currentConsoleId, setCurrentConsoleId] = React.useState('');
   const [numColumns, setNumColumns] = React.useState(2);
   const [showProfile, setShowProfile] = React.useState(false);
 
@@ -57,6 +56,12 @@ function HomeScreen({navigation, route}) {
 
   const isFocused = useIsFocused();
   const _isFocused = React.useRef(isFocused);
+  // Keep the ref in sync: it used to be frozen at its mount value, so
+  // the auth/console flow would never have run if the screen had ever
+  // mounted unfocused.
+  React.useEffect(() => {
+    _isFocused.current = isFocused;
+  }, [isFocused]);
 
   const [fabOpen, setFabOpen] = React.useState(false);
 
@@ -310,18 +315,16 @@ function HomeScreen({navigation, route}) {
   };
 
   const handleStartStream = async sessionId => {
-    setCurrentConsoleId(sessionId);
     handleNavigateStream(sessionId);
   };
 
   const handleNavigateStream = async sessionId => {
-    const settings = getSettings();
-
+    // Stream reads the settings itself via getSettings(); the settings
+    // param that used to be passed here was never read.
     navigation.navigate({
       name: 'Stream',
       params: {
         sessionId,
-        settings,
       },
     });
   };
@@ -350,14 +353,21 @@ function HomeScreen({navigation, route}) {
 
   const renderFab = () => {
     const fabActions = [
-      {
-        icon: 'information',
-        label: t('Profile'),
-        onPress: () => {
-          setFabOpen(false);
-          setShowProfile(true);
-        },
-      },
+      // The Profile action only exists when a profile actually loaded:
+      // with a null profile the modal renders nothing, so the button
+      // looked completely dead after a failed profile fetch.
+      ...(profile
+        ? [
+            {
+              icon: 'information',
+              label: t('Profile'),
+              onPress: () => {
+                setFabOpen(false);
+                setShowProfile(true);
+              },
+            },
+          ]
+        : []),
       {
         icon: 'account-supervisor',
         label: t('Friends'),

@@ -113,7 +113,7 @@ function ArchivementDetail({navigation, route}) {
           },
           {
             value: 'lock',
-            label: t('Lock'),
+            label: t('Locked'),
           },
         ]}
       />

@@ -8,30 +8,46 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  RefreshControl,
+  Pressable,
 } from 'react-native';
 import {Text, Appbar, FAB} from 'react-native-paper';
 import {useSelector} from 'react-redux';
 import TitleItem, {getTitleBadge} from '../components/TitleItem';
 import XcloudApi from '../xCloud';
 import Empty from '../components/Empty';
+import {
+  loadCatalogCache,
+  saveCatalogCache,
+  emptySections,
+  CATALOG_TTL_MS,
+} from '../store/catalogCache';
 import {debugFactory} from '../utils/debug';
 import {useTranslation} from 'react-i18next';
 
 const log = debugFactory('CloudScreen');
 
+const SIGL_POPULAR = 'e7590b22-e299-44db-ae22-25c61405454c';
+const SIGL_LEAVING = '393f05bf-e596-4ef6-9487-6d4fa0eab987';
+const SIGL_MKB = '8fa264dd-124f-4af3-97e8-596fcdf4b486';
+const SIGL_TOUCH = '9c86f07a-f3e8-45ad-82a0-a1f759597059';
+
 function CloudScreen({navigation, route}) {
   const {t} = useTranslation();
   const streamingTokens = useSelector(state => state.streamingTokens);
-
-  // log.info('streamingTokens:', streamingTokens);
 
   const [current, setCurrent] = React.useState(3);
   const [numColumns, setNumColumns] = React.useState(2);
   const [currentPage, setCurrentPage] = React.useState(1);
 
   const [loading, setLoading] = React.useState(false);
-  const [loadmoring, setLoadmoring] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
   const [isLimited, setIsLimited] = React.useState(false);
+  // True once a COMPLETE catalog is on screen (from the cache or a
+  // finished fetch). Section counts are only shown then: during a cold
+  // progressive fill the counts would climb chunk by chunk and read as
+  // final numbers long before they are true.
+  const [hydrated, setHydrated] = React.useState(false);
   const [titles, setTitles] = React.useState([]);
   const [newTitles, setNewTitles] = React.useState([]);
   const [titlesMap, setTitlesMap] = React.useState({});
@@ -40,6 +56,11 @@ function CloudScreen({navigation, route}) {
   const [keyword, setKeyword] = React.useState('');
   const flatListRef = React.useRef(null);
   const isFetchGame = React.useRef(false);
+  const fetchInFlight = React.useRef(false);
+  const cacheApplied = React.useRef(false);
+  const cacheSavedAt = React.useRef(0);
+  const lastFetchToken = React.useRef(null);
+  const fetchGamesRef = React.useRef(null);
   const [fabOpen, setFabOpen] = React.useState(false);
   const [view, setView] = React.useState('home');
   const [popularTitles, setPopularTitles] = React.useState([]);
@@ -49,147 +70,215 @@ function CloudScreen({navigation, route}) {
   const [customSection, setCustomSection] = React.useState(null);
 
   const currentTitles = React.useRef([]);
-  const totalPage = React.useRef(0);
+  const xCloudToken = streamingTokens.xCloudToken;
+
+  // Put a complete catalog (cached or freshly fetched) on screen: build
+  // the product map, the owned-games list and every curated section from
+  // the stored section ID lists.
+  const applyCatalog = React.useCallback((allTitles, sections) => {
+    const _titleMap = {};
+    const _orgTitles = [];
+    allTitles.forEach(item => {
+      _titleMap[item.productId] = item;
+      if (
+        !item.XCloudTitleId &&
+        item.details &&
+        item.details.programs &&
+        item.details.programs.indexOf('BYOG') > -1
+      ) {
+        _orgTitles.push(item);
+      }
+    });
+    const byIds = ids =>
+      (ids || [])
+        .map(id => _titleMap[id])
+        .filter(item => !!item);
+    const recentByIds = ids => {
+      const mapped = [];
+      (ids || []).forEach(id => {
+        const hit = _titleMap[id] || _titleMap[String(id).toUpperCase()];
+        if (hit) {
+          mapped.push(hit);
+        }
+      });
+      return mapped;
+    };
+    setTitles(allTitles);
+    setTitlesMap(_titleMap);
+    setOrgTitles(_orgTitles);
+    setPopularTitles(byIds(sections.popular));
+    setLeavingTitles(byIds(sections.leaving));
+    setMkbTitles(byIds(sections.mkb));
+    setTouchTitles(byIds(sections.touch));
+    setNewTitles(byIds(sections.newIds));
+    setRecentNewTitles(recentByIds(sections.recentIds));
+    setHydrated(true);
+  }, []);
 
   React.useEffect(() => {
     if (route.params?.keyword) {
       setKeyword(route.params.keyword);
       setView('grid');
     }
-    if (!streamingTokens.xCloudToken) {
+    if (!xCloudToken) {
       setIsLimited(true);
     } else {
       // The flag must track reality on every effect run: once the token
       // arrives, the tab is not limited anymore.
       setIsLimited(false);
     }
+
     const handleFetchError = e => {
       log.error('Fetch games failed:', (e && e.message) || e);
       setLoading(false);
       Alert.alert(t('Error'), (e && e.message) || String(e));
     };
-    const fetchGames = () => {
-      if (streamingTokens.xCloudToken) {
-        const region = streamingTokens.xCloudToken.getDefaultRegion();
-        if (!region) {
+
+    // background=true: keep whatever is on screen, show no overlay and
+    // report no alert — used for cache refreshes and pull-to-refresh,
+    // where a failure must not blank a working screen.
+    const fetchGames = background => {
+      if (fetchInFlight.current) {
+        setRefreshing(false);
+        return;
+      }
+      if (!xCloudToken) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      const region = xCloudToken.getDefaultRegion();
+      if (!region) {
+        fetchInFlight.current = false;
+        setLoading(false);
+        setRefreshing(false);
+        if (!background) {
           handleFetchError(
             new Error(
               t('No streaming server is available yet. Please try again.'),
             ),
           );
-          return;
         }
-        const _xCloudApi = new XcloudApi(
-          region.baseUri,
-          streamingTokens.xCloudToken.data.gsToken,
-          'cloud',
-        );
+        return;
+      }
+      fetchInFlight.current = true;
+      lastFetchToken.current = xCloudToken;
+      if (!background) {
         setLoading(true);
-        _xCloudApi.getTitles().then(res => {
-          // log.info('_xCloudApi.getTitles res: ', titles);
-          if (res.results) {
-            _xCloudApi
-              .getGamePassProducts(res.results, partialTitles => {
-                // Progressive fill: show games as each chunk arrives
-                // instead of waiting for the whole library.
-                setTitles(partialTitles);
-                setLoading(false);
-              })
-              .then(_titles => {
-              setTitles(_titles);
+      }
+      const _xCloudApi = new XcloudApi(
+        region.baseUri,
+        xCloudToken.data.gsToken,
+        'cloud',
+      );
+      const finish = () => {
+        fetchInFlight.current = false;
+        setLoading(false);
+        setRefreshing(false);
+      };
+      const fail = e => {
+        finish();
+        if (!background) {
+          handleFetchError(e);
+        } else {
+          log.error('Background catalog refresh failed:', (e && e.message) || e);
+        }
+      };
 
-              const _titleMap = {};
-              const _orgTitles = [];
-              _titles.forEach(item => {
-                _titleMap[item.productId] = item;
-
-                // Get org games
-                if (
-                  !item.XCloudTitleId &&
-                  item.details &&
-                  item.details.programs &&
-                  item.details.programs.indexOf('BYOG') > -1
-                ) {
-                  _orgTitles.push(item);
-                }
-              });
-
-              setTitlesMap(_titleMap);
-              setOrgTitles(_orgTitles);
-
-              // Get curated gallery lists from Microsoft's catalog:
-              // Popular, Leaving soon, Mouse and keyboard
-              const mapSigl = (siglId, setter) => {
-                _xCloudApi.getSiglTitles(siglId).then(list => {
-                  const mapped = [];
-                  (list || []).forEach(item => {
-                    if (item.id && _titleMap[item.id]) {
-                      mapped.push(_titleMap[item.id]);
-                    }
-                  });
-                  setter(mapped);
-                });
-              };
-              mapSigl(
-                'e7590b22-e299-44db-ae22-25c61405454c',
-                setPopularTitles,
-              );
-              mapSigl(
-                '393f05bf-e596-4ef6-9487-6d4fa0eab987',
-                setLeavingTitles,
-              );
-              mapSigl('8fa264dd-124f-4af3-97e8-596fcdf4b486', setMkbTitles);
-              mapSigl('9c86f07a-f3e8-45ad-82a0-a1f759597059', setTouchTitles);
-
-              // Get new games
-              _xCloudApi.getNewTitles().then(newTitleRes => {
-                const _newTitles = [];
-                newTitleRes.forEach(item => {
-                  if (item.id && _titleMap[item.id]) {
-                    _newTitles.push(_titleMap[item.id]);
-                  }
-                });
-                setNewTitles(_newTitles);
-
-                // Get recent games
-                _xCloudApi.getRecentTitles().then(recentTitleRes => {
-                  const results = recentTitleRes.results || [];
-                  const _recentTitles = [];
-                  results.forEach(item => {
-                    if (item.details && item.details.productId) {
-                      const productId = item.details.productId;
-                      const productIdUp = productId.toUpperCase();
-                      if (_titleMap[productId] || _titleMap[productIdUp]) {
-                        _recentTitles.push(
-                          _titleMap[productId] || _titleMap[productIdUp],
-                        );
-                      }
-                    }
-                  });
-                  setRecentNewTitles(_recentTitles);
-                  setLoading(false);
-                  isFetchGame.current = true;
-                });
-              });
-              })
-              .catch(handleFetchError);
-          } else {
+      _xCloudApi
+        .getTitles()
+        .then(res => {
+          if (!res.results) {
             // getTitles() resolves [] on failure, which has no .results:
             // treat it as an error instead of spinning forever.
-            handleFetchError(
+            fail(
               new Error(
                 t(
                   'Failed to load games. Please check your connection and try again.',
                 ),
               ),
             );
+            return;
           }
+          // Fire the curated-list requests NOW, in parallel with the
+          // catalog hydration below, instead of chaining them after it:
+          // "Jump back in" used to arrive last of all.
+          const idList = list =>
+            (list || []).map(item => item && item.id).filter(id => !!id);
+          const auxPromise = Promise.all([
+            _xCloudApi.getSiglTitles(SIGL_POPULAR).then(idList),
+            _xCloudApi.getSiglTitles(SIGL_LEAVING).then(idList),
+            _xCloudApi.getSiglTitles(SIGL_MKB).then(idList),
+            _xCloudApi.getSiglTitles(SIGL_TOUCH).then(idList),
+            _xCloudApi.getNewTitles().then(idList),
+            _xCloudApi.getRecentTitles().then(recentRes => {
+              const results = (recentRes && recentRes.results) || [];
+              return results
+                .map(item => item.details && item.details.productId)
+                .filter(id => !!id);
+            }),
+          ]).catch(e => {
+            log.error('Curated lists failed:', (e && e.message) || e);
+            return null;
+          });
+
+          _xCloudApi
+            .getGamePassProducts(res.results, partialTitles => {
+              // Progressive fill only matters on a true cold load; when a
+              // cached catalog is already on screen it stays untouched
+              // until the fresh one is complete.
+              if (!cacheApplied.current) {
+                setTitles(partialTitles);
+              }
+            })
+            .then(async _titles => {
+              const aux = await auxPromise;
+              const sections = aux
+                ? {
+                    popular: aux[0],
+                    leaving: aux[1],
+                    mkb: aux[2],
+                    touch: aux[3],
+                    newIds: aux[4],
+                    recentIds: aux[5],
+                  }
+                : emptySections();
+              applyCatalog(_titles, sections);
+              saveCatalogCache(_titles, sections);
+              cacheSavedAt.current = Date.now();
+              cacheApplied.current = true;
+              isFetchGame.current = true;
+              finish();
+            })
+            .catch(fail);
         })
-        .catch(handleFetchError);
-      }
+        .catch(fail);
     };
-    if (!isFetchGame.current) {
-      fetchGames();
+    fetchGamesRef.current = fetchGames;
+
+    if (xCloudToken && !fetchInFlight.current) {
+      // OneCast-style open: render the saved catalog instantly when one
+      // exists, and only hit the network when there is none, when it is
+      // stale, or when the token changed (e.g. a fresh login — possibly
+      // a different account, whose entitlements differ).
+      if (!cacheApplied.current) {
+        const cache = loadCatalogCache();
+        if (cache) {
+          applyCatalog(cache.titles, cache.sections);
+          cacheApplied.current = true;
+          cacheSavedAt.current = cache.savedAt;
+          isFetchGame.current = true;
+          lastFetchToken.current = xCloudToken;
+        }
+      }
+      if (!cacheApplied.current) {
+        fetchGames(false);
+      } else if (
+        lastFetchToken.current !== xCloudToken ||
+        Date.now() - cacheSavedAt.current > CATALOG_TTL_MS
+      ) {
+        fetchGames(true);
+      }
     }
 
     const updateLayout = () => {
@@ -203,7 +292,19 @@ function CloudScreen({navigation, route}) {
     return () => {
       subscription?.remove();
     };
-  }, [route.params?.keyword, streamingTokens.xCloudToken, navigation]);
+  }, [route.params?.keyword, xCloudToken, navigation, applyCatalog, t]);
+
+  const onRefresh = React.useCallback(() => {
+    if (fetchInFlight.current) {
+      return;
+    }
+    setRefreshing(true);
+    if (fetchGamesRef.current) {
+      fetchGamesRef.current(true);
+    } else {
+      setRefreshing(false);
+    }
+  }, []);
 
   const handleViewDetail = titleItem => {
     navigation.navigate('TitleDetail', {titleItem});
@@ -211,56 +312,6 @@ function CloudScreen({navigation, route}) {
 
   const scrollToTop = () => {
     flatListRef.current?.scrollToOffset({animated: true, offset: 0});
-  };
-
-  const loadMoreData = () => {
-    if (currentPage <= totalPage.current) {
-      setLoadmoring(true);
-      setCurrentPage(currentPage + 1);
-      setTimeout(() => {
-        setLoadmoring(false);
-      }, 1500);
-    } else {
-      setLoadmoring(false);
-    }
-  };
-
-  const footLoading = () => {
-    if (loadmoring) {
-      return (
-        <ActivityIndicator
-          size="large"
-          color="#107C10"
-          style={styles.loadingIndicator}
-        />
-      );
-    } else {
-      return null;
-    }
-  };
-
-  const handleSelectCategories = val => {
-    setCurrent(val);
-    setCustomSection(null);
-    setView('grid');
-    setLoading(true);
-    setCurrentPage(1);
-    scrollToTop();
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-  };
-
-  const handleShowSection = (sectionTitle, data) => {
-    setCustomSection({title: sectionTitle, data});
-    setCurrent(99);
-    setView('grid');
-    setLoading(true);
-    setCurrentPage(1);
-    scrollToTop();
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
   };
 
   /**
@@ -308,32 +359,62 @@ function CloudScreen({navigation, route}) {
     });
   }
 
-  if (currentTitles.current.length > 0) {
-    totalPage.current = Math.ceil(currentTitles.current.length / 20);
-  }
+  const totalPages = Math.max(
+    1,
+    Math.ceil(currentTitles.current.length / 20),
+  );
+
+  const loadMoreData = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleSelectCategories = val => {
+    setCurrent(val);
+    setCustomSection(null);
+    setView('grid');
+    setCurrentPage(1);
+    scrollToTop();
+  };
+
+  const handleShowSection = (sectionTitle, data) => {
+    setCustomSection({title: sectionTitle, data});
+    setCurrent(99);
+    setView('grid');
+    setCurrentPage(1);
+    scrollToTop();
+  };
 
   // Show 20 titles per page
   const endIdx = currentPage * 20;
   let showTitles = currentTitles.current.slice(0, endIdx);
 
-  // Group the loaded library by its real catalog genres
-  const genreMap = {};
-  titles.forEach(item => {
-    (item.Categories || []).forEach(cat => {
-      if (!genreMap[cat]) {
-        genreMap[cat] = [];
-      }
-      genreMap[cat].push(item);
+  // Group the loaded library by its real catalog genres, and pick out
+  // the games included with the user's subscription. Memoised: these
+  // walk the whole catalog, so they must not re-run on unrelated renders.
+  const {genreMap, genreSections, includedTitles} = React.useMemo(() => {
+    const _genreMap = {};
+    titles.forEach(item => {
+      (item.Categories || []).forEach(cat => {
+        if (!_genreMap[cat]) {
+          _genreMap[cat] = [];
+        }
+        _genreMap[cat].push(item);
+      });
     });
-  });
-  const genreSections = Object.keys(genreMap)
-    .filter(cat => cat !== 'Other' && genreMap[cat].length >= 8)
-    .sort((a, b) => genreMap[b].length - genreMap[a].length);
-
-  // Games included with the user's Game Pass subscription
-  const includedTitles = titles.filter(
-    item => getTitleBadge(item) === 'GP',
-  );
+    const _genreSections = Object.keys(_genreMap)
+      .filter(cat => cat !== 'Other' && _genreMap[cat].length >= 8)
+      .sort((a, b) => _genreMap[b].length - _genreMap[a].length);
+    const _includedTitles = titles.filter(
+      item => getTitleBadge(item) === 'GP',
+    );
+    return {
+      genreMap: _genreMap,
+      genreSections: _genreSections,
+      includedTitles: _includedTitles,
+    };
+  }, [titles]);
 
   const renderSection = (sectionTitle, data, onShowAll) => {
     if (!data || data.length === 0) {
@@ -342,8 +423,13 @@ function CloudScreen({navigation, route}) {
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text variant="titleLarge" style={styles.sectionTitle}>
-            {sectionTitle} ({data.length})
+          <Text
+            variant="titleLarge"
+            style={styles.sectionTitle}
+            numberOfLines={1}
+            ellipsizeMode="tail">
+            {sectionTitle}
+            {hydrated ? ' (' + data.length + ')' : ''}
           </Text>
           <Text style={styles.showAll} onPress={onShowAll}>
             {t('Show all')}
@@ -371,6 +457,15 @@ function CloudScreen({navigation, route}) {
     );
   };
 
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      tintColor="#107C10"
+      colors={['#107C10']}
+    />
+  );
+
   return (
     <>
       {loading && (
@@ -388,6 +483,11 @@ function CloudScreen({navigation, route}) {
                 <Appbar.Action
                   icon="arrow-left"
                   onPress={() => {
+                    // Leaving the section also leaves the search behind:
+                    // a stale keyword silently filtered the home
+                    // sections otherwise.
+                    setKeyword('');
+                    setCurrentPage(1);
                     setView('home');
                   }}
                 />
@@ -397,15 +497,15 @@ function CloudScreen({navigation, route}) {
                   view === 'home'
                     ? 'Cloud'
                     : currentTitleText +
-                      ' (' +
-                      currentTitles.current.length +
-                      ')'
+                      (hydrated
+                        ? ' (' + currentTitles.current.length + ')'
+                        : '')
                 }
               />
             </Appbar.Header>
 
             {view === 'home' ? (
-              <ScrollView>
+              <ScrollView refreshControl={refreshControl}>
                 <View style={styles.searchBar}>
                   <TextInput
                     style={styles.searchInput}
@@ -470,7 +570,11 @@ function CloudScreen({navigation, route}) {
                 {renderSection(t('All games'), titles, () =>
                   handleSelectCategories(3),
                 )}
-                {!loading && titles.length === 0 && <Empty />}
+                {!loading && titles.length === 0 && (
+                  <Pressable onPress={onRefresh}>
+                    <Empty />
+                  </Pressable>
+                )}
               </ScrollView>
             ) : (
               <>
@@ -488,6 +592,7 @@ function CloudScreen({navigation, route}) {
                     // the website — not just the open section.
                     setCurrent(3);
                     setCustomSection(null);
+                    setCurrentPage(1);
                   }
                 }}
               />
@@ -500,7 +605,11 @@ function CloudScreen({navigation, route}) {
               )}
             </View>
 
-            {!loading && !showTitles.length && <Empty />}
+            {!loading && !showTitles.length && (
+              <Pressable onPress={onRefresh}>
+                <Empty />
+              </Pressable>
+            )}
 
             {showTitles.length > 0 && (
               <>
@@ -516,6 +625,7 @@ function CloudScreen({navigation, route}) {
                   maxToRenderPerBatch={10}
                   windowSize={5}
                   removeClippedSubviews={true}
+                  refreshControl={refreshControl}
                   contentContainerStyle={styles.listContainer}
                   renderItem={({item}) => {
                     return (
@@ -532,7 +642,6 @@ function CloudScreen({navigation, route}) {
                   }}
                   onEndReached={loadMoreData}
                   onEndReachedThreshold={0.1}
-                  ListFooterComponent={footLoading}
                 />
               </>
             )}
@@ -565,10 +674,6 @@ function CloudScreen({navigation, route}) {
                 icon: 'apps-box',
                 label: t('All'),
                 onPress: () => handleSelectCategories(3),
-              },
-              {
-                icon: 'magnify',
-                onPress: () => setFabOpen(false),
               },
             ]}
             onStateChange={({open}) => setFabOpen(open)}
@@ -630,9 +735,6 @@ const styles = StyleSheet.create({
     width: '25%',
     justifyContent: 'center',
   },
-  loadingIndicator: {
-    padding: 20,
-  },
   searchBar: {
     margin: 12,
     marginBottom: 4,
@@ -670,10 +772,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontWeight: 'bold',
+    // Take the available width and ellipsize, so a long title can no
+    // longer push "Show all" off the right edge of the screen.
+    flex: 1,
+    marginRight: 8,
   },
   showAll: {
     color: '#52B043',
     fontWeight: 'bold',
+    flexShrink: 0,
   },
   rowItem: {
     width: 175,

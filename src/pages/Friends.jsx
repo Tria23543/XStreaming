@@ -111,9 +111,11 @@ function FriendsScreen({navigation}) {
                   <Avatar.Image
                     style={styles.avatar}
                     size={64}
-                    source={{
-                      uri: userinfo.displayPicRaw || '',
-                    }}
+                    source={
+                      userinfo.displayPicRaw
+                        ? {uri: userinfo.displayPicRaw}
+                        : undefined
+                    }
                   />
                   <View>
                     <View style={styles.title}>

@@ -141,14 +141,14 @@ function SettingDetailScreen({navigation, route}) {
     } else if (current === 'audio_bitrate_mode') {
       settings.audio_bitrate_mode = value;
       settings.audio_bitrate = value2;
-    } else if (currentMetas.name === 'signaling_home') {
+    } else if (currentMetas?.name === 'signaling_home') {
       // Persist the choice in settings (handleSaveSettings below) and
       // apply it to the live token so it takes effect immediately.
       if (value) {
         streamingTokens.xHomeToken &&
           streamingTokens.xHomeToken.setDefaultRegion(value);
       }
-    } else if (currentMetas.name === 'signaling_cloud') {
+    } else if (currentMetas?.name === 'signaling_cloud') {
       if (value) {
         streamingTokens.xCloudToken &&
           streamingTokens.xCloudToken.setDefaultRegion(value);
@@ -303,7 +303,9 @@ function SettingDetailScreen({navigation, route}) {
 
         {currentMetas && currentMetas.tips && (
           <View style={styles.tips}>
-            <Text>Tips: {currentMetas && currentMetas.tips}</Text>
+            <Text>
+              {t('Tips')}: {currentMetas && currentMetas.tips}
+            </Text>
           </View>
         )}
 

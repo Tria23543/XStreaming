@@ -25,6 +25,7 @@ import {
   getSettings as getUserSettings,
   saveSettings as saveUserSettings,
 } from '../store/settingStore';
+import {getDefaultButtons} from '../common/gamepadDefaults';
 
 const {FullScreenManager} = NativeModules;
 
@@ -59,124 +60,7 @@ function CustomGamepadScreen({navigation, route}) {
     const initTimer = setTimeout(() => {
       const {width, height} = Dimensions.get('window');
 
-      const nexusLeft = width * 0.5 - 20;
-      const viewLeft = width * 0.5 - 100;
-      const menuLeft = width * 0.5 + 60;
-
-      const _buttons = [
-        {
-          name: 'LeftTrigger',
-          x: 20,
-          y: 40,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'RightTrigger',
-          x: width - 20,
-          y: 40,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'LeftShoulder',
-          x: 20,
-          y: 100,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'RightShoulder',
-          x: width - 20,
-          y: 100,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'A',
-          x: width - 70,
-          y: height - 50,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'B',
-          x: width - 30,
-          y: height - 90,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'X',
-          x: width - 110,
-          y: height - 90,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'Y',
-          x: width - 70,
-          y: height - 130,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'LeftThumb',
-          x: 130,
-          y: height - 50,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'RightThumb',
-          x: width - 210,
-          y: height - 30,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'View',
-          x: viewLeft,
-          y: height - 30,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'Nexus',
-          x: nexusLeft,
-          y: height - 30,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'Menu',
-          x: menuLeft,
-          y: height - 30,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'Dpad',
-          x: 20,
-          y: height - 170,
-          width: 100,
-          height: 100,
-          scale: 1,
-          show: true,
-        },
-        {
-          name: 'LeftStick',
-          x: 175,
-          y: height - 185,
-          show: true,
-        },
-        {
-          name: 'RightStick',
-          x: width - 255,
-          y: height - 155,
-          show: true,
-        },
-      ];
+      const _buttons = getDefaultButtons(width, height);
       if (_settings[_title]) {
         const exitButtons = _settings[_title];
         setButtons(exitButtons);
@@ -279,15 +163,15 @@ function CustomGamepadScreen({navigation, route}) {
           <Card>
             <Card.Content>
               <Text>
-                TIPS1:{' '}
+                •{' '}
                 {t(
                   'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy',
                 )}
               </Text>
               <Text>
-                TIPS2: {t('Click on an element to set its size and display')}
+                • {t('Click on an element to set its size and display')}
               </Text>
-              <Text>TIPS3: {t('Drag elements to adjust their position')}</Text>
+              <Text>• {t('Drag elements to adjust their position')}</Text>
             </Card.Content>
           </Card>
         </Modal>
@@ -315,7 +199,13 @@ function CustomGamepadScreen({navigation, route}) {
                 <List.Item
                   title={t('Reset')}
                   background={background}
-                  onPress={() => handleReset()}
+                  onPress={() => {
+                    handleReset();
+                    // Close the modal like the other actions do (they
+                    // navigate away): leaving it open read as if the
+                    // tap had done nothing.
+                    setActionShowModal(false);
+                  }}
                 />
                 {settings[title] && (
                   <List.Item

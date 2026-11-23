@@ -39,6 +39,11 @@ function AchivementScreen({navigation}) {
       return '';
     }
     const date = moment(isoString).local();
+    if (!date.isValid()) {
+      // An unparseable value used to render moment's literal
+      // "Invalid date" on the card.
+      return '';
+    }
     return date.format('YYYY-MM-DD HH:mm:ss');
   };
 

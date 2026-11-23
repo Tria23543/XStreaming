@@ -15,7 +15,7 @@ function AboutScreen({navigation, route}) {
         <View>
           <Text variant="titleMedium">
             XStreaming is a fully open-source mobile client for xCloud and
-            Xbox home streaming, greatly inspired by
+            Xbox home streaming, greatly inspired by{' '}
             <LinkText url={'https://github.com/unknownskl/greenlight'}>
               Greenlight
             </LinkText>
@@ -39,7 +39,7 @@ function AboutScreen({navigation, route}) {
 
         <View>
           <Text variant="titleMedium">
-            XStreaming-desktop (Windows/MacOS/SteamOS):
+            XStreaming-desktop (Windows/macOS/SteamOS):
           </Text>
         </View>
         <View>

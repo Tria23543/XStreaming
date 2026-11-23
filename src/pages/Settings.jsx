@@ -7,6 +7,7 @@ import {useSelector} from 'react-redux';
 import RNRestart from 'react-native-restart';
 import CookieManager from '@react-native-cookies/cookies';
 import {useTranslation} from 'react-i18next';
+import {clearCatalogCache} from '../store/catalogCache';
 import {debugFactory} from '../utils/debug';
 
 import bases from '../common/settings/bases';
@@ -21,11 +22,9 @@ import pkg from '../../package.json';
 const log = debugFactory('SettingsScreen');
 
 function SettingsScreen({navigation}) {
-  const {t, i18n} = useTranslation();
+  const {t} = useTranslation();
   const authentication = useSelector(state => state.authentication);
   const profile = useSelector(state => state.profile);
-
-  const currentLanguage = i18n.language;
 
   const [loading, setLoading] = React.useState(false);
 
@@ -45,8 +44,12 @@ function SettingsScreen({navigation}) {
           style: 'default',
           onPress: () => {
             setLoading(true);
-            authentication._tokenStore.clear();
-            CookieManager.clearAll();
+            authentication?._tokenStore?.clear();
+            // The catalog cache carries this account's entitlement
+            // flags; a different account signing in next must not
+            // inherit them.
+            clearCatalogCache();
+            CookieManager.clearAll().catch(() => {});
             setTimeout(() => {
               RNRestart.restart();
             }, 1000);

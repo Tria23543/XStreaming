@@ -24,10 +24,21 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
   const {t} = useTranslation();
   const [value, setValue] = React.useState('');
   const [name, setName] = React.useState('');
+  const [nameTouched, setNameTouched] = React.useState(false);
   const [userSettings, setUserSettings] = React.useState({});
   const [settings, setSettings] = React.useState([]);
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const navTimer = React.useRef(null);
   const isFocused = useIsFocused();
+
+  React.useEffect(() => {
+    return () => {
+      if (navTimer.current) {
+        clearTimeout(navTimer.current);
+        navTimer.current = null;
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     navigation.setOptions({
@@ -68,14 +79,21 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
     navigation.navigate('CustomGamepad', {name: value});
   };
 
-  const onChangeText = text => setName(text);
+  const onChangeText = text => {
+    setNameTouched(true);
+    setName(text);
+  };
 
   let errorText = '';
   let isError = false;
   if (!name.trim()) {
     isError = true;
     errorText = t('Name can not be empty');
-  } else if (settings.includes(name.trim())) {
+  } else if (
+    // Case-insensitive: "Layout" and "layout" must not coexist as two
+    // different layouts.
+    settings.some(s => s.toLowerCase() === name.trim().toLowerCase())
+  ) {
     isError = true;
     errorText = t('Name already exists');
   }
@@ -88,19 +106,22 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
           onDismiss={() => {
             setShowAddModal(false);
             setName('');
+            setNameTouched(false);
           }}
           contentContainerStyle={styles.modal}>
           <Card>
             <Card.Content>
               <TextInput label="" value={name} onChangeText={onChangeText} />
-              <HelperText type="error" visible={isError}>
+              <HelperText type="error" visible={isError && nameTouched}>
                 {errorText}
               </HelperText>
 
               <Button
                 mode="contained"
+                disabled={isError}
                 style={{marginTop: 20}}
                 onPress={() => {
+                  setNameTouched(true);
                   if (!isError) {
                     const newName = name.trim();
                     setShowAddModal(false);
@@ -108,7 +129,9 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
                     // show the just-created name (and instantly flag it
                     // as already existing).
                     setName('');
-                    setTimeout(() => {
+                    setNameTouched(false);
+                    navTimer.current = setTimeout(() => {
+                      navTimer.current = null;
                       navigation.navigate('CustomGamepad', {
                         name: newName,
                       });

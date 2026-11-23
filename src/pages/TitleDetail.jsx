@@ -2,7 +2,6 @@ import React from 'react';
 import {StyleSheet, View, ScrollView, Image} from 'react-native';
 import {Text, Button, HelperText} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
-import {getSettings} from '../store/settingStore';
 import {useTranslation} from 'react-i18next';
 import {debugFactory} from '../utils/debug';
 import {getTitleBadge, isEntitled} from '../components/TitleItem';
@@ -12,17 +11,16 @@ const log = debugFactory('TitleDetailScreen');
 function TitleDetail({navigation, route}) {
   const {t} = useTranslation();
   const [titleItem, setTitleItem] = React.useState(null);
-  const [settings, setSettings] = React.useState({});
 
   React.useEffect(() => {
     log.info('TitleDetail titleItem:', route.params?.titleItem);
     if (route.params?.titleItem) {
       setTitleItem(route.params.titleItem);
     }
-    const _settings = getSettings();
-    setSettings(_settings);
     navigation.setOptions({
-      title: route.params?.titleItem.ProductTitle || '',
+      // The ?. must cover titleItem too: params present without a
+      // titleItem used to throw here.
+      title: route.params?.titleItem?.ProductTitle || '',
     });
   }, [route.params?.titleItem, navigation]);
 
@@ -32,7 +30,8 @@ function TitleDetail({navigation, route}) {
       name: 'Stream',
       params: {
         sessionId: titleItem.titleId || titleItem.XCloudTitleId,
-        settings,
+        // Stream reads the settings itself; the settings param that
+        // used to be passed here was never read.
         streamType: 'cloud',
       },
     });

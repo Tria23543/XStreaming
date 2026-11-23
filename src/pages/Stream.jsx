@@ -289,6 +289,13 @@ function StreamScreen({navigation, route}) {
       timer.current && clearInterval(timer.current);
       controllerEventListener.current &&
         controllerEventListener.current.remove();
+      // The Disconnect fallback timer must not fire after unmount: it
+      // would run handleExit() and navigate Home with needRefresh even
+      // though the user already left by another route.
+      if (exitFallbackTimer.current) {
+        clearTimeout(exitFallbackTimer.current);
+        exitFallbackTimer.current = null;
+      }
     };
   }, [
     route.params?.sessionId,
@@ -309,11 +316,19 @@ function StreamScreen({navigation, route}) {
 
   const webviewRef = React.useRef(null);
   const exitFallbackTimer = React.useRef(null);
+  const tipsShownRef = React.useRef(false);
+  const [webviewError, setWebviewError] = React.useState(false);
 
   const handlePowerOff = async () => {
-    const webApi = new WebApi(webToken);
-    const powerOffRes = await webApi.powerOff(route.params?.sessionId);
-    log.info('powerOff done');
+    try {
+      const webApi = new WebApi(webToken);
+      const powerOffRes = await webApi.powerOff(route.params?.sessionId);
+      log.info('powerOff done');
+    } catch (e) {
+      // Called fire-and-forget during exit: a failed power-off must not
+      // surface as an unhandled rejection (the exit proceeds regardless).
+      log.error('Power off error:', (e && e.message) || e);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -405,7 +420,7 @@ function StreamScreen({navigation, route}) {
     }
     const {type, message} = data;
     if (type === 'other') {
-      Alert.alert(message);
+      Alert.alert(String(message ?? ''));
     }
     // The session-flow messages dereference streamApi; if it was never
     // created (missing token/region), fail visibly instead of throwing.
@@ -547,7 +562,10 @@ function StreamScreen({navigation, route}) {
       ]);
     }
     if (type === 'deviceVibration') {
-      const {rumbleData} = message;
+      const {rumbleData} = message || {};
+      if (!rumbleData) {
+        return;
+      }
       if (rumbleData.strongMagnitude === 0 && rumbleData.weakMagnitude === 0) {
         Vibration.cancel();
       } else {
@@ -555,7 +573,10 @@ function StreamScreen({navigation, route}) {
       }
     }
     if (type === 'nativeVibration') {
-      const {rumbleData} = message;
+      const {rumbleData} = message || {};
+      if (!rumbleData) {
+        return;
+      }
       let weakMagnitude = rumbleData.weakMagnitude * 65535;
       let strongMagnitude = rumbleData.strongMagnitude * 65535;
       let leftTrigger = rumbleData.leftTrigger * 65535;
@@ -626,7 +647,13 @@ function StreamScreen({navigation, route}) {
       setConnectState(message);
       if (message === CONNECTED) {
         setToastText(t('Connected'));
-        setShowTipsModal(true);
+        // Show the tips modal once per stream: a renegotiation can make
+        // the page report 'connected' again, and the modal must not pop
+        // up over the game a second time.
+        if (!tipsShownRef.current) {
+          tipsShownRef.current = true;
+          setShowTipsModal(true);
+        }
       }
       // Alway show virtual gamepad
       if (message === CONNECTED && settings.show_virtual_gamead) {
@@ -905,7 +932,7 @@ function StreamScreen({navigation, route}) {
 
                   {connectState === CONNECTED && (
                     <List.Item
-                      title={t('Aspect ratio') + ': Fit'}
+                      title={t('Aspect ratio') + ': ' + t('Fit')}
                       background={background}
                       onPress={() => {
                         handleSetAspect('', 'contain');
@@ -935,7 +962,7 @@ function StreamScreen({navigation, route}) {
 
                   {connectState === CONNECTED && (
                     <List.Item
-                      title={'Resolution: 720P (next stream)'}
+                      title={t('Resolution: 720P (next stream)')}
                       background={background}
                       onPress={() => {
                         handleSetResolution(720);
@@ -945,7 +972,7 @@ function StreamScreen({navigation, route}) {
 
                   {connectState === CONNECTED && (
                     <List.Item
-                      title={'Resolution: 1080P (next stream)'}
+                      title={t('Resolution: 1080P (next stream)')}
                       background={background}
                       onPress={() => {
                         handleSetResolution(1080);
@@ -955,7 +982,7 @@ function StreamScreen({navigation, route}) {
 
                   {connectState === CONNECTED && (
                     <List.Item
-                      title={'Resolution: 1080P HQ (next stream)'}
+                      title={t('Resolution: 1080P HQ (next stream)')}
                       background={background}
                       onPress={() => {
                         handleSetResolution(1081);
@@ -1066,7 +1093,17 @@ function StreamScreen({navigation, route}) {
       </View>
 
       <View style={{flex: 1}}>
-        {showWebview && (
+        {webviewError && (
+          <View style={styles.webviewError}>
+            <Text style={styles.webviewErrorText}>
+              {t('The stream page failed to load. Please go back and try again.')}
+            </Text>
+            <Button mode="contained" onPress={handleExit}>
+              {t('Disconnect')}
+            </Button>
+          </View>
+        )}
+        {showWebview && !webviewError && (
           <WebView
             ref={instance => {
               webviewRef.current = instance;
@@ -1090,6 +1127,9 @@ function StreamScreen({navigation, route}) {
             onError={syntheticEvent => {
               const {nativeEvent} = syntheticEvent;
               console.warn('WebView error: ', nativeEvent);
+              // A failed stream page used to leave a silent black
+              // screen; show an error with a way out instead.
+              setWebviewError(true);
             }}
           />
         )}
@@ -1129,6 +1169,17 @@ const styles = StyleSheet.create({
     right: 5,
     bottom: 5,
     zIndex: 10,
+  },
+  webviewError: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  webviewErrorText: {
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
   },
 });
 
