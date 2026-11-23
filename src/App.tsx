@@ -18,8 +18,10 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 
 import merge from 'deepmerge';
 import {Provider} from 'react-redux';
+import {useMMKVString} from 'react-native-mmkv';
 import store from './store';
 import {getSettings} from './store/settingStore';
+import {storage} from './store/mmkv';
 
 import customLightTheme from './theme/index';
 import customDarkTheme from './theme/index.dark';
@@ -121,6 +123,12 @@ function HomeTabs() {
 function App() {
   const {t} = useTranslation();
   const colorScheme = useColorScheme();
+  // Subscribe to the stored settings: getSettings() alone is a
+  // one-time read, so without this the app never noticed a changed
+  // theme until a full cold start (inside a container, maybe never).
+  // Any settings save now re-renders the app and the theme applies
+  // immediately.
+  const [_settingsJson] = useMMKVString('user.settings', storage);
   const settings = getSettings();
 
   let paperTheme = paperDarkTheme;
