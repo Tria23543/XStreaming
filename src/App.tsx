@@ -45,7 +45,6 @@ import {useTranslation} from 'react-i18next';
 import {SystemBars} from 'react-native-edge-to-edge';
 
 import './i18n';
-import SearchScreen from './pages/Search';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createStackNavigator();
@@ -174,11 +173,6 @@ function App() {
                   name="Display"
                   component={DisplaySettingsScreen}
                   options={{title: t('Display')}}
-                />
-                <RootStack.Screen
-                  name="Search"
-                  component={SearchScreen}
-                  options={{title: t('Search'), headerShown: false}}
                 />
                 <RootStack.Screen
                   name="Friends"

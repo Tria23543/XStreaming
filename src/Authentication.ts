@@ -18,11 +18,26 @@ export default class Authentication {
     this._authenticationFailed = authenticationFailed;
   }
 
+  _pendingCheckResolve: ((value: boolean) => void) | null = null;
+
   _notifyFailed(error: any) {
     this._isAuthenticating = false;
+    if (this._pendingCheckResolve) {
+      this._pendingCheckResolve(false);
+      this._pendingCheckResolve = null;
+    }
     if (this._authenticationFailed) {
       this._authenticationFailed(error);
     }
+  }
+
+  _notifyCompleted(streamingTokens: any, webToken: any) {
+    this._isAuthenticating = false;
+    if (this._pendingCheckResolve) {
+      this._pendingCheckResolve(true);
+      this._pendingCheckResolve = null;
+    }
+    this._authenticationCompleted(streamingTokens, webToken);
   }
 
   /**
@@ -41,16 +56,20 @@ export default class Authentication {
 
         if (this._tokenStore.hasValidAuthTokens()) {
           log.info('[checkAuthentication] Tokens are valid.');
+          // Resolve from the silent flow's actual outcome (via
+          // _notifyCompleted/_notifyFailed), not before it is known.
+          this._pendingCheckResolve = resolve;
           this.startSilentFlow();
-          return resolve(true);
+          return;
         }
 
         if (this._tokenStore.getUserToken() !== undefined) {
           log.info(
             '[checkAuthentication] Tokens are expired but user token exists. Attempting refresh...',
           );
+          this._pendingCheckResolve = resolve;
           this.startSilentFlow();
-          return resolve(true);
+          return;
         }
 
         log.info('[checkAuthentication] No tokens are present.');
@@ -74,21 +93,28 @@ export default class Authentication {
     const oneHour = 60 * 60 * 1000;
     const timeSinceUpdate = Date.now() - this._tokenStore.getTokenUpdateTime();
 
-    // 小于 1 小时就不重复调用 refreshTokens
-    if (timeSinceUpdate < oneHour) {
+    // Skipping the refresh is only safe when a usable Sisu token already
+    // exists: it is created exclusively by refreshTokens, and the streaming
+    // token request throws without one. A fresh interactive login saves
+    // only a user token (with a fresh update timestamp), so the timestamp
+    // alone must never skip the refresh.
+    const sisuToken = this._tokenStore.getSisuToken();
+    const hasUsableSisu = !!sisuToken && sisuToken.isValid();
+
+    if (timeSinceUpdate < oneHour && hasUsableSisu) {
       log.info('[startSilentFlow] Skipping refreshTokens');
       this._xal
         .getStreamingToken(this._tokenStore)
         .then(streamingTokens => {
           return this._xal.getWebToken(this._tokenStore).then(webToken => {
-            this._isAuthenticating = false;
-            this._authenticationCompleted(streamingTokens, webToken);
+            this._notifyCompleted(streamingTokens, webToken);
           });
         })
         .catch(error => {
           log.error('[startSilentFlow] Silent flow error:', error);
-          // 失败时清空 TokenStore 让前端重新触发完整登录流程
-          this._tokenStore.clear();
+          // Never clear the token store on a silent-flow failure: a
+          // transient network error must not destroy a saved login. The
+          // failure is surfaced so the UI can offer a fresh login instead.
           this._notifyFailed(error);
         });
       return;
@@ -106,15 +132,13 @@ export default class Authentication {
             this._xal
               .getWebToken(this._tokenStore)
               .then(webToken => {
-                this._isAuthenticating = false;
-                this._authenticationCompleted(streamingTokens, webToken);
+                this._notifyCompleted(streamingTokens, webToken);
               })
               .catch(webError => {
                 log.error(
                   '[startSilentFlow] getWebToken after refresh error:',
                   webError,
                 );
-                this._tokenStore.clear();
                 this._notifyFailed(webError);
               });
           })
@@ -123,14 +147,13 @@ export default class Authentication {
               '[startSilentFlow] getStreamingToken after refresh error:',
               streamError,
             );
-            this._tokenStore.clear();
             this._notifyFailed(streamError);
           });
       })
       .catch(refreshError => {
         log.error('[startSilentFlow] refreshTokens failed:', refreshError);
-        // 清除可能的无效 token 让前端重新发起登录
-        this._tokenStore.clear();
+        // Keep the saved tokens (see above): the UI offers a fresh login
+        // on failure, and a successful interactive login overwrites them.
         this._notifyFailed(refreshError);
       });
   }
@@ -161,7 +184,7 @@ export default class Authentication {
             '[startAuthflow] Login cancelled or returned no auth code; keeping any saved login.',
           );
           this._isAuthenticating = false;
-          this._notifyFailed(new Error('Login cancelled'));
+          this._notifyFailed(new Error('Login failed or cancelled'));
         }
       })
       .catch(error => {
