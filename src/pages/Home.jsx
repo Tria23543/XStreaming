@@ -132,9 +132,17 @@ function HomeScreen({navigation, route}) {
                 text: t('Confirm'),
                 style: 'default',
                 onPress: () => {
-                  navigation.navigate('Login', {
-                    authUrl: redirectObj.sisuAuth.MsaOauthRedirect,
-                  });
+                  const authUrl = redirectObj?.sisuAuth?.MsaOauthRedirect;
+                  if (authUrl) {
+                    navigation.navigate('Login', {authUrl});
+                  } else {
+                    Alert.alert(
+                      t('Error'),
+                      t(
+                        'Currently no network connection, please connect and try again',
+                      ),
+                    );
+                  }
                 },
               },
             ],
@@ -403,14 +411,15 @@ function HomeScreen({navigation, route}) {
       return (
         <View style={styles.noConsoles}>
           <Text variant="titleMedium">{t('NoConsoles')}</Text>
-          {_redirect.current && (
+          {_redirect.current?.sisuAuth?.MsaOauthRedirect && (
             <Button
               mode="contained"
               style={{marginTop: 16}}
               onPress={() => {
-                navigation.navigate('Login', {
-                  authUrl: _redirect.current.sisuAuth.MsaOauthRedirect,
-                });
+                const authUrl = _redirect.current?.sisuAuth?.MsaOauthRedirect;
+                if (authUrl) {
+                  navigation.navigate('Login', {authUrl});
+                }
               }}>
               {t('Login')}
             </Button>
