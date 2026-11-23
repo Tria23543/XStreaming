@@ -3,9 +3,9 @@ import axios from 'axios';
 
 // Every request this module makes carries a hard timeout.
 // Axios's default is 0 (never), and a connection that stalls
-// without erroring would otherwise leave sign-in checks,
-// session starts, state polls and catalog fetches unsettled
-// forever. (A per-call timeout, where one exists, still wins.)
+// without erroring would otherwise leave the sign-in and token
+// requests below unsettled forever. (A per-call timeout, where
+// one exists, still wins.)
 const http = axios.create({timeout: 15000});
 
 import UserToken from '../tokens/usertoken';
@@ -454,7 +454,10 @@ export default class Xal {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store, must-revalidate, no-cache',
         'x-gssv-client': 'XboxComBrowser',
-        'Content-Length': body.length,
+        // No manual Content-Length: body.length counts UTF-16 code
+        // units, not bytes, so it would undercount any non-ASCII
+        // payload — and the networking layer computes the real
+        // length itself anyway.
       };
 
       if (_settings.force_region_ip.length > 0) {
@@ -482,7 +485,20 @@ export default class Xal {
     );
 
     if (!this._xhomeToken || this._xhomeToken.getSecondsValid() <= 60) {
-      this._xhomeToken = await this.getStreamToken(xstsToken, 'xhome');
+      try {
+        this._xhomeToken = await this.getStreamToken(xstsToken, 'xhome');
+      } catch (error) {
+        // The xhome (console streaming) token must not take the
+        // whole sign-in down with it: a cloud-only user needs the
+        // xcloud token below, which was never attempted if this
+        // throw escaped. Keep any existing xhome token (console
+        // streaming will surface its own error if it is unusable)
+        // and continue to the xcloud mint.
+        log.error(
+          '[getStreamingToken] xhome error:',
+          error?.message || error,
+        );
+      }
     }
 
     if (!this._xcloudToken || this._xcloudToken.getSecondsValid() <= 60) {
