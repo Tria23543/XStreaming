@@ -8,7 +8,8 @@ type Props = {
 
 const LinkText: React.FC<Props> = ({url, children}) => {
   const handlePress = () => {
-    Linking.openURL(url); // 点击时打开链接
+    // 点击时打开链接
+    Linking.openURL(url).catch(() => {});
   };
 
   return (

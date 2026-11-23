@@ -51,9 +51,9 @@ const PerfPanel: React.FC<Props> = ({performance = {}}) => {
       return '🔋: --';
     }
     if (level < 20) {
-      return `🪫: ${level}%`;
+      return `🪫: ${Math.round(level)}%`;
     } else {
-      return `🔋: ${level}%`;
+      return `🔋: ${Math.round(level)}%`;
     }
   };
 

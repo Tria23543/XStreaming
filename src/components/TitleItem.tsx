@@ -93,6 +93,10 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
           <View style={[styles.badge, styles.badgeOwned]}>
             <Text style={styles.badgeText}>OWNED</Text>
           </View>
+        ) : badge === 'FREE' ? (
+          <View style={[styles.badge, styles.badgeFree]}>
+            <Text style={styles.badgeText}>FREE</Text>
+          </View>
         ) : null}
         <View style={styles.descriptionContainer}>
           <Text
@@ -144,6 +148,9 @@ const styles = StyleSheet.create({
   badgeOwned: {
     backgroundColor: '#595959',
   },
+  badgeFree: {
+    backgroundColor: '#0F6CBD',
+  },
   badgeText: {
     color: '#FFFFFF',
     fontSize: 9,
@@ -151,4 +158,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TitleItem;
+// Memoised: the Cloud screen renders 100+ tiles, and without this every
+// catalog progress update re-rendered every visible tile.
+export default React.memo(TitleItem);

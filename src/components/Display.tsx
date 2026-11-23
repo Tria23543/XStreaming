@@ -1,6 +1,6 @@
 import React from 'react';
-import {StyleSheet, View, ScrollView} from 'react-native';
-import {Text, Button, IconButton} from 'react-native-paper';
+import {StyleSheet, View} from 'react-native';
+import {Text, IconButton} from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import {useTranslation} from 'react-i18next';
 
@@ -118,7 +118,7 @@ const Display: React.FC<Props> = ({options, onChange}) => {
           onValueChange={val => {
             handleValChange('saturation', val);
           }}
-          lowerLimit={0}
+          lowerLimit={50}
           minimumTrackTintColor="#107C10"
           maximumTrackTintColor="grey"
         />
@@ -152,7 +152,7 @@ const Display: React.FC<Props> = ({options, onChange}) => {
           onValueChange={val => {
             handleValChange('contrast', val);
           }}
-          lowerLimit={0}
+          lowerLimit={50}
           minimumTrackTintColor="#107C10"
           maximumTrackTintColor="grey"
         />
@@ -186,7 +186,7 @@ const Display: React.FC<Props> = ({options, onChange}) => {
           onValueChange={val => {
             handleValChange('brightness', val);
           }}
-          lowerLimit={0}
+          lowerLimit={50}
           minimumTrackTintColor="#107C10"
           maximumTrackTintColor="grey"
         />

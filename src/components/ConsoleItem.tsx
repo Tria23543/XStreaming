@@ -100,10 +100,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: 10,
   },
-  footerControl: {
-    marginHorizontal: 2,
-    backgroundColor: 'red',
-  },
 });
 
 export default ConsoleItem;
