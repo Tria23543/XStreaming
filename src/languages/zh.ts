@@ -246,6 +246,7 @@ export default {
     'Automatic Trigger': '自动步枪',
     Send: '发送',
     Sended: '已发送',
+    Sent: '已发送',
     Text: '文字',
     'Send text': '发送文字',
     stream_warn_text:

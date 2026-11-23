@@ -11,7 +11,7 @@ export default {
     'Checking login status...': 'Checking login status...',
     Warning: 'Warning',
     WaitingForServerToRegister:
-      'Unable to start stream session on console. The console is not connected to the Xbox servers. This ocasionally happens then there is an update or when the user is not signed in to the console. Please hard reboot your console and try again.',
+      'Unable to start stream session on console. The console is not connected to the Xbox servers. This occasionally happens when there is an update or when the user is not signed in to the console. Please hard reboot your console and try again.',
     'Login has expired or not logged in, please log in again':
       'Login has expired or not logged in, please log in again',
     'Loading...': 'Loading...',
@@ -53,19 +53,11 @@ export default {
       'Changing the region allows you to use XGPU services without a proxy',
     'Preferred language of game': 'Preferred language of game',
     'Set language of cloud game': 'Set language of cloud game',
-    'Key mapping': 'Key mapping',
-    'Mapping key of gamepad': 'Mapping key of gamepad',
     'Override native Xbox gamepad support': 'Override native gamepad support',
     noAllow:
       'Permission denied for streaming or cloud gaming. Please verify your login status and try logging in again. For cloud gaming, ensure you have an active XGPU subscription. For non-XGPU games, verify that you own the game',
-    bind_usb_device_description:
-      'Force Peasyo’s USB driver to take over all supported /DualSense controllers (experimental)',
-    bind_usb_device_tips:
-      'This setting only takes effect for controllers that support XInput or DualSense protocol when connected via wired (OTG).',
     power_on_description:
       "Choose whether to power on the console when streaming. By default, the console remains in sleep mode, and the power light won't turn on during streaming. Enabling this option will fully power on the host and may wake up the monitor",
-    low_latency_mode_description:
-      "Use Android's Wi-Fi performance mode to achieve optimal streaming effects. This may cause Bluetooth latency on some devices. If you encounter Bluetooth latency issues, please choose to disable this mode.",
     Logout: 'Logout',
     'Do you want to logout?': 'Do you want to logout?',
     'Current user': 'Current user',
@@ -75,14 +67,13 @@ export default {
     AudioSettings: 'Audio',
     XcloudSettings: 'Cloud Gaming',
     XchomeSettings: 'Console Streaming',
-    SensorSettings: 'Sensor',
     Auto: 'Auto',
     Custom: 'Custom',
     bitrate: 'bitrate',
     On: 'On',
     Off: 'Off',
     Current: 'Current',
-    NoData: 'NoData',
+    NoData: 'No data',
     Gamerscore: 'Gamerscore',
     Default: 'Default',
     Australia: 'Australia',
@@ -98,32 +89,22 @@ export default {
     Saved: 'Saved',
     Reset: 'Reset',
     Exit: 'Exit',
-    gyroTitle: 'Enable Gyroscope',
-    gyroDesc:
-      'Whether to force the use of the device’s gyroscope. When the LT button is pressed, the gyroscope simulates the right stick, commonly used in FPS games.',
-    gyroTips:
-      "Currently, only the device's gyroscope is supported; gamepad gyroscope is not supported",
-    gyroSenTitleX: 'Gyroscope X-axis Sensitivity',
-    gyroSenDescX: 'Adjust gyroscope X-axis sensitivity',
-    gyroSenTitleY: 'Gyroscope Y-axis Sensitivity',
-    gyroSenDescY: 'Adjust gyroscope Y-axis sensitivity',
     byorg:
       'This game is a self-purchased game, not part of the XGPU library. Please ensure that you have purchased this game to play.',
-    show_menu_title: 'Display Quick Menu',
-    show_menu_desc:
-      'The quick menu is always displayed in the lower right corner of the streaming page.',
-    sensorInvertTitle: 'Invert Gyroscope Simulated Joystick',
-    sensorInvertDesc:
-      'The gyroscope direction on some devices may be opposite to the actual direction. you can invert the direction here.',
-    x_axies: 'X Axis',
-    y_axies: 'Y Axis',
-    all_axies: 'All Axes',
-    DualSense_adaptive_trigger_left: 'Set DualSense Left Trigger',
-    DualSense_adaptive_trigger_left_desc:
-      'You can set the DualSense left trigger to resistance/trigger/automatic trigger (to enable this feature, you need to turn on Android overlay driver (Settings - Overlay Android Controller Support - Enable), and connect the DualSense controller via cable)',
-    DualSense_adaptive_trigger_right: 'Set DualSense Right Trigger',
-    DualSense_adaptive_trigger_right_desc:
-      'You can set the DualSense right trigger to resistance/trigger/automatic trigger (to enable this feature, you need to turn on Android overlay driver (Settings - Overlay Android Controller Support - Enable), and connect the DualSense controller via cable)',
+    Score: 'Score',
+    Achievements: 'Achievements',
+    Sent: 'Sent',
+    'Failed to send': 'Failed to send',
+    Unknown: 'Unknown',
+    'Name already exists': 'Name already exists',
+    'Picture settings': 'Picture settings',
+    'Adjust sharpness, saturation, contrast and brightness':
+      'Adjust sharpness, saturation, contrast and brightness',
+    'Community and support the author': 'Community and support the author',
+    'No login link available. Please go back and try again.':
+      'No login link available. Please go back and try again.',
+    'No servers available yet. Please log in first, then reopen this page.':
+      'No servers available yet. Please log in first, then reopen this page.',
     stream_warn_text:
       'For a better gaming experience, we recommend using a controller to play. Controller vibration and trigger effects are only available on iOS 14 and above.',
   },
