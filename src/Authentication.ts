@@ -20,8 +20,26 @@ export default class Authentication {
 
   _pendingCheckResolve: ((value: boolean) => void) | null = null;
 
-  _notifyFailed(error: any) {
+  // Single-flight bookkeeping. Without it, two overlapping checks could
+  // run duelling silent flows: the second overwrote the first check's
+  // resolver (whose promise then never settled), and two refreshTokens
+  // calls raced on the same stored refresh token — Microsoft rotates
+  // refresh tokens on use, so one flow could fail purely because the
+  // other redeemed it first, and its failure notification could fire the
+  // login prompt even when the other flow succeeded. Each flow now gets
+  // a generation number; only the newest generation may notify.
+  _inflightCheck: Promise<boolean> | null = null;
+  _flowGeneration: number = 0;
+  _flowRunning: number = 0;
+
+  _notifyFailed(error: any, generation?: number) {
+    if (generation !== undefined && generation !== this._flowGeneration) {
+      // A superseded flow finished late: its outcome no longer counts.
+      return;
+    }
     this._isAuthenticating = false;
+    this._flowRunning = 0;
+    this._inflightCheck = null;
     if (this._pendingCheckResolve) {
       this._pendingCheckResolve(false);
       this._pendingCheckResolve = null;
@@ -31,8 +49,13 @@ export default class Authentication {
     }
   }
 
-  _notifyCompleted(streamingTokens: any, webToken: any) {
+  _notifyCompleted(streamingTokens: any, webToken: any, generation?: number) {
+    if (generation !== undefined && generation !== this._flowGeneration) {
+      return;
+    }
     this._isAuthenticating = false;
+    this._flowRunning = 0;
+    this._inflightCheck = null;
     if (this._pendingCheckResolve) {
       this._pendingCheckResolve(true);
       this._pendingCheckResolve = null;
@@ -45,7 +68,13 @@ export default class Authentication {
    * 如果已过期但有 userToken -> 尝试静默刷新
    */
   checkAuthentication() {
-    return new Promise<boolean>(resolve => {
+    // Single-flight: a check that arrives while another check's flow is
+    // still running joins that same promise instead of starting a
+    // second, competing flow.
+    if (this._inflightCheck) {
+      return this._inflightCheck;
+    }
+    const promise = new Promise<boolean>(resolve => {
       try {
         this._tokenStore.load();
         log.info('[checkAuthentication] Starting token check...');
@@ -79,6 +108,13 @@ export default class Authentication {
         return resolve(false);
       }
     });
+    // Track the promise only when a flow was actually started (the
+    // resolver was registered); an immediately-resolved check leaves
+    // nothing in flight.
+    if (this._pendingCheckResolve) {
+      this._inflightCheck = promise;
+    }
+    return promise;
   }
 
   /**
@@ -86,8 +122,17 @@ export default class Authentication {
    * 1. 如果距离上次刷新少于 1 小时，则直接获取 streaming/web token
    * 2. 否则先刷新 token 再获取
    */
-  startSilentFlow() {
+  startSilentFlow(force: boolean = false) {
+    if (this._flowRunning !== 0 && !force) {
+      // A flow is already running; its completion will resolve any
+      // pending check and fire the callbacks. Starting another one
+      // would race it on the same stored refresh token.
+      log.info('[startSilentFlow] A flow is already running; joining it.');
+      return;
+    }
     log.info('[startSilentFlow] Starting silent flow...');
+    const generation = ++this._flowGeneration;
+    this._flowRunning = generation;
     this._isAuthenticating = true;
 
     const oneHour = 60 * 60 * 1000;
@@ -107,7 +152,7 @@ export default class Authentication {
         .getStreamingToken(this._tokenStore)
         .then(streamingTokens => {
           return this._xal.getWebToken(this._tokenStore).then(webToken => {
-            this._notifyCompleted(streamingTokens, webToken);
+            this._notifyCompleted(streamingTokens, webToken, generation);
           });
         })
         .catch(error => {
@@ -115,7 +160,7 @@ export default class Authentication {
           // Never clear the token store on a silent-flow failure: a
           // transient network error must not destroy a saved login. The
           // failure is surfaced so the UI can offer a fresh login instead.
-          this._notifyFailed(error);
+          this._notifyFailed(error, generation);
         });
       return;
     }
@@ -132,14 +177,14 @@ export default class Authentication {
             this._xal
               .getWebToken(this._tokenStore)
               .then(webToken => {
-                this._notifyCompleted(streamingTokens, webToken);
+                this._notifyCompleted(streamingTokens, webToken, generation);
               })
               .catch(webError => {
                 log.error(
                   '[startSilentFlow] getWebToken after refresh error:',
                   webError,
                 );
-                this._notifyFailed(webError);
+                this._notifyFailed(webError, generation);
               });
           })
           .catch(streamError => {
@@ -147,14 +192,14 @@ export default class Authentication {
               '[startSilentFlow] getStreamingToken after refresh error:',
               streamError,
             );
-            this._notifyFailed(streamError);
+            this._notifyFailed(streamError, generation);
           });
       })
       .catch(refreshError => {
         log.error('[startSilentFlow] refreshTokens failed:', refreshError);
         // Keep the saved tokens (see above): the UI offers a fresh login
         // on failure, and a successful interactive login overwrites them.
-        this._notifyFailed(refreshError);
+        this._notifyFailed(refreshError, generation);
       });
   }
 
@@ -165,6 +210,11 @@ export default class Authentication {
    */
   startAuthflow(redirect: any, redirectUri: any) {
     log.info('[startAuthflow] starting interactive flow');
+    // An explicit interactive login supersedes any silent flow still in
+    // flight: bump the generation so the old flow's late completion is
+    // ignored, and take over the running slot.
+    const generation = ++this._flowGeneration;
+    this._flowRunning = generation;
     this._isAuthenticating = true;
 
     this._xal
@@ -175,7 +225,7 @@ export default class Authentication {
         if (result) {
           // 用户成功授权 Microsoft 登录
           log.info('[startAuthflow] User authenticated, starting silent flow...');
-          this.startSilentFlow();
+          this.startSilentFlow(true);
         } else {
           // The user cancelled or dismissed the Microsoft login. Any
           // previously saved login must be kept — never clear the token
@@ -183,15 +233,16 @@ export default class Authentication {
           log.warn(
             '[startAuthflow] Login cancelled or returned no auth code; keeping any saved login.',
           );
-          this._isAuthenticating = false;
-          this._notifyFailed(new Error('Login failed or cancelled'));
+          this._notifyFailed(
+            new Error('Login failed or cancelled'),
+            generation,
+          );
         }
       })
       .catch(error => {
         // A failed login attempt must not destroy a previously saved login.
         log.error('[startAuthflow] Authentication failed:', error);
-        this._isAuthenticating = false;
-        this._notifyFailed(error);
+        this._notifyFailed(error, generation);
       });
   }
 }
