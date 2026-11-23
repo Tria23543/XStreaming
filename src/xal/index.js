@@ -33,7 +33,7 @@ export default class Xal {
   };
 
   constructor() {
-    XalManager.init && XalManager.init();
+    XalManager && XalManager.init && XalManager.init();
   }
 
   // 获取设备 token（遇 400 自动重试，最多 5 次，避免无限递归）

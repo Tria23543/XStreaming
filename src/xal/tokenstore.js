@@ -43,6 +43,19 @@ export default class TokenStore {
       return false;
     }
 
+    // A stored string that parses to null/a scalar is just as unusable.
+    if (!jsonData || typeof jsonData !== 'object') {
+      this._userToken = undefined;
+      this._sisuToken = undefined;
+      this._tokenUpdateTime = 0;
+      return false;
+    }
+
+    // Reset first so a reused instance never keeps tokens that the newly
+    // loaded data no longer contains.
+    this._userToken = undefined;
+    this._sisuToken = undefined;
+
     if (jsonData.userToken) {
       this._userToken = new UserToken(jsonData.userToken);
     }
@@ -63,6 +76,14 @@ export default class TokenStore {
   setUserToken(userToken) {
     const expireDate = new Date();
     expireDate.setSeconds(expireDate.getSeconds() + userToken.data.expires_in);
+
+    if (isNaN(expireDate.getTime())) {
+      // Missing/invalid expires_in: keep the raw data instead of throwing
+      // on toISOString(); the token will simply read as expired and the
+      // refresh path will handle it.
+      this._userToken = new UserToken({...userToken.data});
+      return;
+    }
 
     this._userToken = new UserToken({
       ...userToken.data,
@@ -103,9 +124,15 @@ export default class TokenStore {
     } catch (e) {
       console.log('clear error: ', e);
     }
+    // Also remove any legacy plaintext copy, or it would be re-migrated
+    // on the next launch and resurrect the login after a logout.
+    try {
+      storage.delete(STORE_KEY);
+    } catch (e) {}
 
     this._userToken = undefined;
     this._sisuToken = undefined;
+    this._tokenUpdateTime = 0;
   }
 
   clearTokenUpdateTime() {
