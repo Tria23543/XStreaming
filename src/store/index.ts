@@ -5,7 +5,7 @@ const initialState = {
   streamingTokens: {},
   webToken: {},
   authentication: null,
-  redirect: {},
+  redirect: null,
   profile: {},
 };
 
