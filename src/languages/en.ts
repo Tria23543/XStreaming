@@ -98,6 +98,9 @@ export default {
       'No servers available yet. Please log in first, then reopen this page.',
     stream_warn_text:
       'For a better gaming experience, we recommend using a controller to play. Controller vibration and trigger effects are only available on iOS 14 and above.',
+    // The entries below complete the table: English text doubles as
+    // its own translation, so each value equals its key. They are
+    // written in double quotes to keep apostrophes unescaped.
     "Login": "Login",
     "About": "About",
     "Profile": "Profile",
