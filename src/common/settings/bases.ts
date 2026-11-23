@@ -18,7 +18,7 @@ const bases = [
     name: 'theme',
     type: 'radio',
     title: t('Theme'),
-    description: t('Set the app theme to take effect on the next launch'),
+    description: t('Set the app theme, takes effect immediately'),
     data: [
       {value: 'auto', text: t('Auto')},
       {value: 'light', text: t('Light')},
