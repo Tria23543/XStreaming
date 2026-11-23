@@ -1,13 +1,9 @@
 import React from 'react';
-import {StyleSheet, View, ScrollView, Image} from 'react-native';
+import {StyleSheet, View, ScrollView} from 'react-native';
 import {Text, Button} from 'react-native-paper';
-import Spinner from 'react-native-loading-spinner-overlay';
 import {getSettings, saveSettings} from '../store/settingStore';
 import {useTranslation} from 'react-i18next';
 import Display from '../components/Display';
-import {debugFactory} from '../utils/debug';
-
-const log = debugFactory('DisplaySettingsScreen');
 
 function DisplaySettings({navigation, route}) {
   const {t} = useTranslation();

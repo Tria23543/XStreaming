@@ -2,8 +2,10 @@ import React from 'react';
 import {StyleSheet, View, ScrollView} from 'react-native';
 import {Text} from 'react-native-paper';
 import LinkText from '../components/LinkText';
+import {useTranslation} from 'react-i18next';
 
 function AboutScreen({navigation, route}) {
+  const {t} = useTranslation();
   return (
     <ScrollView style={styles.container}>
       <View style={styles.block}>
@@ -37,7 +39,7 @@ function AboutScreen({navigation, route}) {
 
         <View>
           <Text variant="titleMedium">
-            XStreaming-desktop(Windows/MacOS/SteamOS):
+            XStreaming-desktop (Windows/MacOS/SteamOS):
           </Text>
         </View>
         <View>
@@ -66,7 +68,7 @@ function AboutScreen({navigation, route}) {
 
       <View style={styles.block}>
         <View style={styles.title}>
-          <Text variant="titleLarge">About author</Text>
+          <Text variant="titleLarge">{t('About the author')}</Text>
         </View>
         <View>
           <View>

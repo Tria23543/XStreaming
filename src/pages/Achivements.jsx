@@ -35,6 +35,9 @@ function AchivementScreen({navigation}) {
   }, [webToken]);
 
   const formatTime = isoString => {
+    if (!isoString) {
+      return '';
+    }
     const date = moment(isoString).local();
     return date.format('YYYY-MM-DD HH:mm:ss');
   };

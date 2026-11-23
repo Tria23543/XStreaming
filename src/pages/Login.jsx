@@ -10,6 +10,7 @@ const log = debugFactory('LoginScreen');
 function DetailScreen({navigation, route}) {
   const {t} = useTranslation();
   const [authUrl, setAuthUrl] = React.useState('');
+  const [loadError, setLoadError] = React.useState(false);
   const redirectHandled = React.useRef(false);
 
   React.useEffect(() => {
@@ -17,6 +18,7 @@ function DetailScreen({navigation, route}) {
       // Do not write the full auth URL (it carries auth parameters) to logs.
       log.info('Receive authUrl');
       redirectHandled.current = false;
+      setLoadError(false);
       setAuthUrl(route.params?.authUrl);
     }
   }, [route.params?.authUrl]);
@@ -33,12 +35,29 @@ function DetailScreen({navigation, route}) {
     });
   };
 
+  if (authUrl !== '' && loadError) {
+    return (
+      <View style={styles.container}>
+        <Text variant="titleMedium" style={styles.text}>
+          {t(
+            'The login page failed to load. Please check your connection and try again.',
+          )}
+        </Text>
+        <Button mode="contained" onPress={() => navigation.goBack()}>
+          {t('Back')}
+        </Button>
+      </View>
+    );
+  }
+
   if (authUrl !== '') {
     return (
       <WebView
         source={{uri: authUrl}}
         originWhitelist={['*']}
         setSupportMultipleWindows={false}
+        onError={() => setLoadError(true)}
+        onHttpError={() => setLoadError(true)}
         onShouldStartLoadWithRequest={request => {
           if (request.url.startsWith('ms-xal-000000004c20a908:')) {
             handleRedirect(request.url);

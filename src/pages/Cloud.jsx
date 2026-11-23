@@ -7,9 +7,9 @@ import {
   ActivityIndicator,
   ScrollView,
   TextInput,
+  Alert,
 } from 'react-native';
 import {Text, Appbar, FAB} from 'react-native-paper';
-import Spinner from 'react-native-loading-spinner-overlay';
 import {useSelector} from 'react-redux';
 import TitleItem, {getTitleBadge} from '../components/TitleItem';
 import XcloudApi from '../xCloud';
@@ -58,11 +58,29 @@ function CloudScreen({navigation, route}) {
     }
     if (!streamingTokens.xCloudToken) {
       setIsLimited(true);
+    } else {
+      // The flag must track reality on every effect run: once the token
+      // arrives, the tab is not limited anymore.
+      setIsLimited(false);
     }
+    const handleFetchError = e => {
+      log.error('Fetch games failed:', (e && e.message) || e);
+      setLoading(false);
+      Alert.alert(t('Error'), (e && e.message) || String(e));
+    };
     const fetchGames = () => {
       if (streamingTokens.xCloudToken) {
+        const region = streamingTokens.xCloudToken.getDefaultRegion();
+        if (!region) {
+          handleFetchError(
+            new Error(
+              t('No streaming server is available yet. Please try again.'),
+            ),
+          );
+          return;
+        }
         const _xCloudApi = new XcloudApi(
-          streamingTokens.xCloudToken.getDefaultRegion().baseUri,
+          region.baseUri,
           streamingTokens.xCloudToken.data.gsToken,
           'cloud',
         );
@@ -153,9 +171,21 @@ function CloudScreen({navigation, route}) {
                   isFetchGame.current = true;
                 });
               });
-              });
+              })
+              .catch(handleFetchError);
+          } else {
+            // getTitles() resolves [] on failure, which has no .results:
+            // treat it as an error instead of spinning forever.
+            handleFetchError(
+              new Error(
+                t(
+                  'Failed to load games. Please check your connection and try again.',
+                ),
+              ),
+            );
           }
-        });
+        })
+        .catch(handleFetchError);
       }
     };
     if (!isFetchGame.current) {
@@ -387,6 +417,7 @@ function CloudScreen({navigation, route}) {
                       if (text.length > 0) {
                         setCurrent(3);
                         setCustomSection(null);
+                        setCurrentPage(1);
                         setView('grid');
                       }
                     }}
@@ -478,6 +509,9 @@ function CloudScreen({navigation, route}) {
                   data={showTitles}
                   numColumns={numColumns}
                   key={numColumns}
+                  keyExtractor={(item, index) =>
+                    item.productId || String(index)
+                  }
                   initialNumToRender={10}
                   maxToRenderPerBatch={10}
                   windowSize={5}

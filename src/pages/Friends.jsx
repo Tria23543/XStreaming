@@ -89,7 +89,15 @@ function FriendsScreen({navigation}) {
         textStyle={styles.spinnerTextStyle}
       />
 
-      {!loading && !friends.length && <Empty />}
+      {!loading && !friends.length && (
+        <ScrollView
+          contentContainerStyle={{flexGrow: 1}}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }>
+          <Empty />
+        </ScrollView>
+      )}
 
       {friends.length > 0 && (
         <ScrollView

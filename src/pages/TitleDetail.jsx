@@ -95,7 +95,7 @@ function TitleDetail({navigation, route}) {
               )}
               {badge === null && (
                 <Text variant="titleMedium" style={styles.gpText}>
-                  {t('Stream your own game')} · {t('Needs to be purchased')}
+                  {t('Needs to be purchased')}
                 </Text>
               )}
             </View>

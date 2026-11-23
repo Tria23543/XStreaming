@@ -195,7 +195,6 @@ function StreamScreen({navigation, route}) {
       controllerEventListener.current = eventEmitter.addListener(
         'onController',
         params => {
-          console.log('native controller:', params);
           const {
             buttonFlags,
             leftTrigger,
@@ -261,20 +260,31 @@ function StreamScreen({navigation, route}) {
       }
     }
 
-    setTimeout(() => {
-      Orientation.lockToLandscape();
-
+    // Keep every timer id so the cleanup can cancel the whole chain:
+    // otherwise the timers fire after unmount and can re-lock the phone
+    // to landscape after the user has already exited.
+    const timeoutIds = [];
+    timeoutIds.push(
       setTimeout(() => {
-        const {height: dHeight} = Dimensions.get('window');
-        setModalMaxHeight(dHeight - 50);
-        setShowWebview(true);
-        setTimeout(() => {
-          webviewRef.current && webviewRef.current.requestFocus();
-        }, 100);
-      }, 800);
-    }, 500);
+        Orientation.lockToLandscape();
+
+        timeoutIds.push(
+          setTimeout(() => {
+            const {height: dHeight} = Dimensions.get('window');
+            setModalMaxHeight(dHeight - 50);
+            setShowWebview(true);
+            timeoutIds.push(
+              setTimeout(() => {
+                webviewRef.current && webviewRef.current.requestFocus();
+              }, 100),
+            );
+          }, 800),
+        );
+      }, 500),
+    );
 
     return () => {
+      timeoutIds.forEach(id => clearTimeout(id));
       Orientation.unlockAllOrientations();
       timer.current && clearInterval(timer.current);
       controllerEventListener.current &&
@@ -298,11 +308,12 @@ function StreamScreen({navigation, route}) {
   });
 
   const webviewRef = React.useRef(null);
+  const exitFallbackTimer = React.useRef(null);
 
   const handlePowerOff = async () => {
     const webApi = new WebApi(webToken);
     const powerOffRes = await webApi.powerOff(route.params?.sessionId);
-    console.log('powerOff:', powerOffRes);
+    log.info('powerOff done');
   };
 
   const handleSendMessage = async () => {
@@ -325,6 +336,10 @@ function StreamScreen({navigation, route}) {
   const handleExit = () => {
     if (isExiting) {
       return;
+    }
+    if (exitFallbackTimer.current) {
+      clearTimeout(exitFallbackTimer.current);
+      exitFallbackTimer.current = null;
     }
     setIsExiting(true);
     const finishExit = () => {
@@ -381,21 +396,41 @@ function StreamScreen({navigation, route}) {
   };
 
   const handleWebviewMessage = event => {
-    const data = JSON.parse(event.nativeEvent.data);
+    let data;
+    try {
+      data = JSON.parse(event.nativeEvent.data);
+    } catch (e) {
+      // A malformed WebView message must not throw inside onMessage.
+      return;
+    }
     const {type, message} = data;
-    console.log('handleWebviewMessage type:', type);
-    console.log('handleWebviewMessage message:', message);
     if (type === 'other') {
       Alert.alert(message);
     }
+    // The session-flow messages dereference streamApi; if it was never
+    // created (missing token/region), fail visibly instead of throwing.
+    if (
+      (type === 'xcloudReady' ||
+        type === 'xcloudOfferReady' ||
+        type === 'sendICEReady' ||
+        type === 'sendKeepalive') &&
+      !streamApi
+    ) {
+      log.error('Stream API not ready for message:', type);
+      if (type === 'xcloudReady') {
+        Alert.alert(
+          t('Error'),
+          t('Streaming is not ready yet. Please go back and try again.'),
+        );
+      }
+      return;
+    }
     if (type === 'xcloudReady') {
       const _settings = getSettings();
-      log.info('Get localSettings:', _settings);
 
       streamApi
         .startSession(route.params?.sessionId, _settings.resolution)
         .then(configuration => {
-          console.log('*****startSessionEnd:', configuration);
           postData2Webview('startSessionEnd', configuration);
         })
         .catch(e => {
@@ -495,7 +530,13 @@ function StreamScreen({navigation, route}) {
         });
     }
     if (type === 'streamingClosed') {
-      Alert.alert(t('Warning'), 'Streaming is closed.', [
+      // The WebView answered the disconnect: the normal exit flow owns
+      // leaving from here, so cancel the requestExit fallback timer.
+      if (exitFallbackTimer.current) {
+        clearTimeout(exitFallbackTimer.current);
+        exitFallbackTimer.current = null;
+      }
+      Alert.alert(t('Warning'), t('Streaming is closed.'), [
         {
           text: t('Confirm'),
           style: 'default',
@@ -507,7 +548,7 @@ function StreamScreen({navigation, route}) {
     }
     if (type === 'deviceVibration') {
       const {rumbleData} = message;
-      if (rumbleData.strongMagnitude === 0 || rumbleData.weakMagnitude === 0) {
+      if (rumbleData.strongMagnitude === 0 && rumbleData.weakMagnitude === 0) {
         Vibration.cancel();
       } else {
         Vibration.vibrate(rumbleData.duration / 10);
@@ -631,15 +672,17 @@ function StreamScreen({navigation, route}) {
   };
 
   const handleSetAspect = (format, fit) => {
-    settings.video_format = format;
-    saveSettings(settings);
+    const next = {...settings, video_format: format};
+    setSettings(next);
+    saveSettings(next);
     applyAspectToVideo(fit);
     handleCloseModal();
   };
 
   const handleSetResolution = value => {
-    settings.resolution = value;
-    saveSettings(settings);
+    const next = {...settings, resolution: value};
+    setSettings(next);
+    saveSettings(next);
     handleCloseModal();
   };
 
@@ -665,11 +708,13 @@ function StreamScreen({navigation, route}) {
     let leveledX = data.dist.x;
     let leveledY = data.dist.y;
 
+    // Normalize strings to numbers: toFixed is a Number method, so the
+    // old "fix-up" (calling it on a string) would itself have thrown.
     if (typeof leveledX === 'string') {
-      leveledX = leveledX.toFixed(2);
+      leveledX = parseFloat(leveledX) || 0;
     }
     if (typeof leveledY === 'string') {
-      leveledY = leveledY.toFixed(2);
+      leveledY = parseFloat(leveledY) || 0;
     }
 
     if (id === 'right') {
@@ -708,6 +753,15 @@ function StreamScreen({navigation, route}) {
     setShowVirtualGamepad(false);
     postData2Webview('disconnect', {});
     setShowModal(false);
+    // If the WebView never answers with streamingClosed/exit, leave via
+    // handleExit anyway instead of stranding the user on a dead picture.
+    // (The streamingClosed handler clears this timer when it does answer.)
+    if (exitFallbackTimer.current) {
+      clearTimeout(exitFallbackTimer.current);
+    }
+    exitFallbackTimer.current = setTimeout(() => {
+      handleExit();
+    }, 2000);
   };
 
   const background = {
@@ -719,9 +773,9 @@ function StreamScreen({navigation, route}) {
   const handleDisplayOptionsChange = React.useCallback(
     options => {
       postData2Webview('refreshVideo', options);
-      settings.display_options = options;
-      // setSettings(settings);
-      saveSettings(settings);
+      const next = {...settings, display_options: options};
+      setSettings(next);
+      saveSettings(next);
     },
     [settings],
   );

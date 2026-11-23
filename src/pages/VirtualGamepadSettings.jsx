@@ -85,7 +85,10 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
       <Portal>
         <Modal
           visible={showAddModal}
-          onDismiss={() => setShowAddModal(false)}
+          onDismiss={() => {
+            setShowAddModal(false);
+            setName('');
+          }}
           contentContainerStyle={styles.modal}>
           <Card>
             <Card.Content>
@@ -99,10 +102,15 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
                 style={{marginTop: 20}}
                 onPress={() => {
                   if (!isError) {
+                    const newName = name.trim();
                     setShowAddModal(false);
+                    // Clear the field so reopening the dialog does not
+                    // show the just-created name (and instantly flag it
+                    // as already existing).
+                    setName('');
                     setTimeout(() => {
                       navigation.navigate('CustomGamepad', {
-                        name: name.trim(),
+                        name: newName,
                       });
                     }, 300);
                   }

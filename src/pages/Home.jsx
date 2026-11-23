@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {Text, FAB, Portal, Modal, Card, Button} from 'react-native-paper';
-import Spinner from 'react-native-loading-spinner-overlay';
 import {useIsFocused} from '@react-navigation/native';
 import ConsoleItem from '../components/ConsoleItem';
 import Profile from '../components/Profile';
@@ -46,6 +45,10 @@ function HomeScreen({navigation, route}) {
 
   const isLogined = useSelector(state => state.isLogined);
   const _isLogined = React.useRef(isLogined);
+  // Set by the authenticationFailed callback when it has already shown
+  // the login prompt, so checkAuthentication resolving false for the
+  // same failure does not prompt a second time.
+  const _authPromptHandled = React.useRef(false);
 
   const webToken = useSelector(state => state.webToken);
   const webTokenRef = React.useRef(null);
@@ -78,6 +81,14 @@ function HomeScreen({navigation, route}) {
       setIsConnected(state.isConnected);
     });
 
+    // One cleanup for every exit path of this effect. Returning partial
+    // cleanups (or none, on the offline path) leaks the other listener
+    // on every run.
+    const cleanupListeners = () => {
+      subscription?.remove();
+      unsubscribe();
+    };
+
     if (!isConnected) {
       Alert.alert(
         t('Warning'),
@@ -90,7 +101,7 @@ function HomeScreen({navigation, route}) {
           },
         ],
       );
-      return;
+      return cleanupListeners;
     }
 
     const promptLogin = () => {
@@ -133,9 +144,11 @@ function HomeScreen({navigation, route}) {
     if (!_authentication.current) {
       log.info('Authentication initial.');
       const authenticationFailed = () => {
-        // Silent refresh failed (tokens were cleared) or an interactive
-        // login was cancelled. Never leave the page stuck on the loading
-        // spinner: drop back to the login prompt.
+        // Silent refresh failed (the saved tokens are kept; the user can
+        // retry or log in fresh) or an interactive login was cancelled.
+        // Never leave the page stuck on the loading spinner: drop back
+        // to the login prompt.
+        _authPromptHandled.current = true;
         dispatch({
           type: 'SET_LOGIN',
           payload: false,
@@ -211,8 +224,8 @@ function HomeScreen({navigation, route}) {
       // Return from Login screen
       if (route.params?.xalUrl) {
         if (!_isLogined.current) {
-          log.info('HomeScreen receive xalUrl:', route.params?.xalUrl);
-          log.info('Current authentication state:', _authentication.current); // 添加这行
+          // Never log the redirect URL itself: it carries the auth code.
+          log.info('HomeScreen received a login redirect');
           setXalUrl(route.params.xalUrl);
           setLoading(true);
           setLoadingText(
@@ -227,13 +240,20 @@ function HomeScreen({navigation, route}) {
         setLoading(true);
         setLoadingText(t('Fetching consoles...'));
         const webApi = new WebApi(webTokenRef.current);
-        webApi.getConsoles().then(_consoles => {
-          setConsoles(_consoles);
-          setLoading(false);
-        });
+        webApi
+          .getConsoles()
+          .then(_consoles => {
+            setConsoles(_consoles);
+            setLoading(false);
+          })
+          .catch(e => {
+            log.error('GetConsoles refresh error:', (e && e.message) || e);
+            setLoading(false);
+          });
       } else {
         setLoading(true);
         setLoadingText(t('Checking login status...'));
+        _authPromptHandled.current = false;
         _authentication.current
           .checkAuthentication()
           .then(isAuth => {
@@ -241,7 +261,9 @@ function HomeScreen({navigation, route}) {
               type: 'SET_AUTHENTICATION',
               payload: _authentication.current,
             });
-            if (!isAuth) {
+            // If the silent flow failed, authenticationFailed has
+            // already shown the login prompt for this failure.
+            if (!isAuth && !_authPromptHandled.current) {
               promptLogin();
             }
           })
@@ -250,14 +272,10 @@ function HomeScreen({navigation, route}) {
           });
       }
 
-      return () => {
-        unsubscribe();
-      };
+      return cleanupListeners;
     }
 
-    return () => {
-      subscription?.remove();
-    };
+    return cleanupListeners;
   }, [
     t,
     route.params?.xalUrl,
@@ -282,6 +300,9 @@ function HomeScreen({navigation, route}) {
 
       handleStartStream(sessionId);
     } catch (e) {
+      // Power-on (or the console refresh) failed; still try the stream,
+      // but leave a trace so a later failure is diagnosable.
+      log.error('Power on and stream error:', (e && e.message) || e);
       setLoading(false);
 
       handleStartStream(sessionId);
@@ -398,6 +419,7 @@ function HomeScreen({navigation, route}) {
               data={consoles}
               numColumns={numColumns}
               key={numColumns}
+              keyExtractor={(item, index) => item.id || String(index)}
               contentContainerStyle={styles.listContainer}
               renderItem={({item}) => {
                 return (

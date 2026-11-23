@@ -8,12 +8,12 @@ import {
 } from 'react-native';
 import {SegmentedButtons} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
-import {getSettings} from '../store/settingStore';
 import {useTranslation} from 'react-i18next';
 import {useSelector} from 'react-redux';
 import {debugFactory} from '../utils/debug';
 import WebApi from '../web';
 import ArchivementItem from '../components/ArchivementItem';
+import Empty from '../components/Empty';
 // import mockData from '../mock/achivement';
 
 const log = debugFactory('ArchivementDetail');
@@ -95,6 +95,7 @@ function ArchivementDetail({navigation, route}) {
     <View style={styles.container}>
       <Spinner
         visible={loading}
+        color={'#107C10'}
         textContent={t('Loading...')}
         textStyle={styles.spinnerTextStyle}
       />
@@ -122,6 +123,10 @@ function ArchivementDetail({navigation, route}) {
         data={showArchivements}
         numColumns={numColumns}
         key={numColumns}
+        keyExtractor={(item, index) =>
+          item && item.id ? String(item.id) : String(index)
+        }
+        ListEmptyComponent={!loading ? <Empty /> : null}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

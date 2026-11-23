@@ -56,7 +56,7 @@ function CustomGamepadScreen({navigation, route}) {
     // console.log('_settings:', _settings);
     FullScreenManager.immersiveModeOn();
     Orientation.lockToLandscape();
-    setTimeout(() => {
+    const initTimer = setTimeout(() => {
       const {width, height} = Dimensions.get('window');
 
       const nexusLeft = width * 0.5 - 20;
@@ -191,16 +191,20 @@ function CustomGamepadScreen({navigation, route}) {
     const unsubscribeBeforeRemove = navigation.addListener(
       'beforeRemove',
       e => {
+        // Always prevent the default first: re-dispatching another
+        // action without preventDefault lets the original action ALSO
+        // proceed, performing it twice.
+        e.preventDefault();
         if (e.data.action.type !== 'GO_BACK') {
           navigation.dispatch(e.data.action);
         } else {
-          e.preventDefault();
           setActionShowModal(true);
         }
       },
     );
 
     return () => {
+      clearTimeout(initTimer);
       unsubscribeBeforeRemove();
       Orientation.unlockAllOrientations();
       FullScreenManager.immersiveModeOff();
@@ -230,7 +234,6 @@ function CustomGamepadScreen({navigation, route}) {
 
   // Button show change
   const handleChangeShow = value => {
-    console.log('handleChangeShow:', value);
     setCurrentShow(value);
     buttons.forEach(b => {
       if (b.name === currentButton) {
@@ -371,8 +374,8 @@ function CustomGamepadScreen({navigation, route}) {
               <RadioButton.Group
                 onValueChange={val => handleChangeShow(val)}
                 value={currentShow}>
-                <RadioButton.Item label={'Display'} value={true} />
-                <RadioButton.Item label={'Hide'} value={false} />
+                <RadioButton.Item label={t('Display')} value={true} />
+                <RadioButton.Item label={t('Hide')} value={false} />
               </RadioButton.Group>
             </Card.Content>
           </Card>

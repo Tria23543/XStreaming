@@ -15,7 +15,6 @@ import gamepad from '../common/settings/gamepad';
 import audio from '../common/settings/audio';
 import xcloud from '../common/settings/xcloud';
 import xhome from '../common/settings/xhome';
-import others from '../common/settings/others';
 
 import pkg from '../../package.json';
 
@@ -27,7 +26,6 @@ function SettingsScreen({navigation}) {
   const profile = useSelector(state => state.profile);
 
   const currentLanguage = i18n.language;
-  console.log('currentLanguage:', currentLanguage);
 
   const [loading, setLoading] = React.useState(false);
 
@@ -210,17 +208,6 @@ function SettingsScreen({navigation}) {
               {t('Others')}
             </Text>
           </View>
-
-          {others.map((meta, idx) => {
-            return (
-              <SettingItem
-                key={meta.name || idx}
-                title={meta.title}
-                description={meta.description}
-                onPress={() => handleItemPress(meta.name)}
-              />
-            );
-          })}
 
           <SettingItem
             title={t('About')}

@@ -19,7 +19,6 @@ import gamepad from '../common/settings/gamepad';
 import audio from '../common/settings/audio';
 import xcloud from '../common/settings/xcloud';
 import xhome from '../common/settings/xhome';
-import others from '../common/settings/others';
 
 function SettingDetailScreen({navigation, route}) {
   const {t} = useTranslation();
@@ -30,6 +29,15 @@ function SettingDetailScreen({navigation, route}) {
   const [currentMetas, setCurrentMetas] = React.useState(null);
   const [settings, setSettings] = React.useState({});
   const [savedVisible, setSavedVisible] = React.useState(false);
+  const saveTimer = React.useRef(null);
+  React.useEffect(() => {
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+      }
+    };
+  }, []);
+
   const regions = React.useRef([]);
   const xgpuRegions = React.useRef([]);
 
@@ -42,7 +50,7 @@ function SettingDetailScreen({navigation, route}) {
 
   React.useEffect(() => {
     const _settings = getSettings();
-    console.log('Get localSettings:', _settings);
+    // Do not log the full settings object.
     setSettings(_settings);
 
     if (route.params?.id) {
@@ -55,7 +63,6 @@ function SettingDetailScreen({navigation, route}) {
         ...audio,
         ...xcloud,
         ...xhome,
-        ...others,
       ];
       let metas = {};
       settingsMeta.forEach(item => {
@@ -100,6 +107,16 @@ function SettingDetailScreen({navigation, route}) {
   }, [navigation, route.params?.id]);
 
   const handleSaveSettings = () => {
+    // Never overwrite a saved signal-server choice with an empty value
+    // (can happen if the page mounted before the tokens existed and no
+    // region ended up selected).
+    if (
+      (current === 'signaling_home' || current === 'signaling_cloud') &&
+      !value &&
+      settings[current]
+    ) {
+      return;
+    }
     if (settings[current] !== undefined) {
       settings[current] = value;
       setSettings(settings);
@@ -127,11 +144,15 @@ function SettingDetailScreen({navigation, route}) {
     } else if (currentMetas.name === 'signaling_home') {
       // Persist the choice in settings (handleSaveSettings below) and
       // apply it to the live token so it takes effect immediately.
-      streamingTokens.xHomeToken &&
-        streamingTokens.xHomeToken.setDefaultRegion(value);
+      if (value) {
+        streamingTokens.xHomeToken &&
+          streamingTokens.xHomeToken.setDefaultRegion(value);
+      }
     } else if (currentMetas.name === 'signaling_cloud') {
-      streamingTokens.xCloudToken &&
-        streamingTokens.xCloudToken.setDefaultRegion(value);
+      if (value) {
+        streamingTokens.xCloudToken &&
+          streamingTokens.xCloudToken.setDefaultRegion(value);
+      }
     }
     handleSaveSettings();
     if (Platform.OS === 'android') {
@@ -139,8 +160,13 @@ function SettingDetailScreen({navigation, route}) {
       navigation.goBack();
     } else {
       // iOS has no ToastAndroid; show a brief confirmation, then go back.
+      // The timer is tracked so leaving the page first (or saving twice)
+      // cannot pop an extra screen afterwards.
       setSavedVisible(true);
-      setTimeout(() => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+      }
+      saveTimer.current = setTimeout(() => {
         navigation.goBack();
       }, 700);
     }
