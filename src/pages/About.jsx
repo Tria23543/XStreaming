@@ -12,8 +12,8 @@ function AboutScreen({navigation, route}) {
         </View>
         <View>
           <Text variant="titleMedium">
-            XStreaming is an full open-source mobile client for xCloud and Xbox
-            home streaming, great inspired by
+            XStreaming is a fully open-source mobile client for xCloud and
+            Xbox home streaming, greatly inspired by
             <LinkText url={'https://github.com/unknownskl/greenlight'}>
               Greenlight
             </LinkText>
@@ -50,7 +50,7 @@ function AboutScreen({navigation, route}) {
       <View style={styles.block}>
         <View style={styles.title}>
           <Text variant="titleLarge">
-            Are you looking for an Playstation streaming client?
+            Are you looking for a PlayStation streaming client?
           </Text>
         </View>
 

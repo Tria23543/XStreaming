@@ -93,11 +93,73 @@ function HomeScreen({navigation, route}) {
       return;
     }
 
+    const promptLogin = () => {
+      _authentication.current._xal
+        .getRedirectUri()
+        .then(redirectObj => {
+          setLoading(false);
+          log.info('Redirect:', redirectObj);
+          _redirect.current = redirectObj;
+          dispatch({
+            type: 'SET_REDIRECT',
+            payload: redirectObj,
+          });
+          Alert.alert(
+            t('Warning'),
+            t('Login has expired or not logged in, please log in again'),
+            [
+              {
+                text: t('Later'),
+                style: 'cancel',
+              },
+              {
+                text: t('Confirm'),
+                style: 'default',
+                onPress: () => {
+                  navigation.navigate('Login', {
+                    authUrl: redirectObj.sisuAuth.MsaOauthRedirect,
+                  });
+                },
+              },
+            ],
+          );
+        })
+        .catch(e => {
+          setLoading(false);
+          Alert.alert(t('Error'), (e && e.message) || String(e));
+        });
+    };
+
     if (!_authentication.current) {
       log.info('Authentication initial.');
+      const authenticationFailed = () => {
+        // Silent refresh failed (tokens were cleared) or an interactive
+        // login was cancelled. Never leave the page stuck on the loading
+        // spinner: drop back to the login prompt.
+        dispatch({
+          type: 'SET_LOGIN',
+          payload: false,
+        });
+        _isLogined.current = false;
+        setLoading(false);
+        promptLogin();
+      };
       const authenticationCompleted = async (_streamingTokens, _webToken) => {
         log.info('Authentication completed');
         webTokenRef.current = _webToken;
+        // Re-apply the user's saved signal-server choices, because fresh
+        // streaming tokens always start from Microsoft's default region.
+        const _savedSettings = getSettings();
+        if (_streamingTokens?.xCloudToken && _savedSettings.signaling_cloud) {
+          _streamingTokens.xCloudToken.setDefaultRegion(
+            _savedSettings.signaling_cloud,
+          );
+        }
+        if (_streamingTokens?.xHomeToken && _savedSettings.signaling_home) {
+          _streamingTokens.xHomeToken.setDefaultRegion(
+            _savedSettings.signaling_home,
+          );
+        }
         // log.info('AuthenticationCompleted streamingTokens:', streamingTokens);
         dispatch({
           type: 'SET_STREAMING_TOKEN',
@@ -133,7 +195,10 @@ function HomeScreen({navigation, route}) {
         setLoading(false);
       };
 
-      _authentication.current = new Authentication(authenticationCompleted);
+      _authentication.current = new Authentication(
+        authenticationCompleted,
+        authenticationFailed,
+      );
       dispatch({
         type: 'SET_AUTHENTICATION',
         payload: _authentication.current,
@@ -177,38 +242,7 @@ function HomeScreen({navigation, route}) {
               payload: _authentication.current,
             });
             if (!isAuth) {
-              _authentication.current._xal
-                .getRedirectUri()
-                .then(redirectObj => {
-                  setLoading(false);
-                  log.info('Redirect:', redirectObj);
-                  _redirect.current = redirectObj;
-                  dispatch({
-                    type: 'SET_REDIRECT',
-                    payload: redirectObj,
-                  });
-                  Alert.alert(
-                    t('Warning'),
-                    t(
-                      'Login has expired or not logged in, please log in again',
-                    ),
-                    [
-                      {
-                        text: t('Later'),
-                        style: 'cancel',
-                      },
-                      {
-                        text: t('Confirm'),
-                        style: 'default',
-                        onPress: () => {
-                          navigation.navigate('Login', {
-                            authUrl: redirectObj.sisuAuth.MsaOauthRedirect,
-                          });
-                        },
-                      },
-                    ],
-                  );
-                });
+              promptLogin();
             }
           })
           .catch(e => {
@@ -310,8 +344,8 @@ function HomeScreen({navigation, route}) {
       },
       {
         icon: 'trophy',
-        label: t('Achivements'),
-        onPress: () => navigation.navigate('Achivements'),
+        label: t('Achievements'),
+        onPress: () => navigation.navigate('Achievements'),
       },
     ];
 

@@ -3,10 +3,10 @@ import {
   StyleSheet,
   View,
   ScrollView,
-  NativeModules,
+  Platform,
   ToastAndroid,
 } from 'react-native';
-import {Button, RadioButton, Text, Divider} from 'react-native-paper';
+import {Button, RadioButton, Text, Divider, Snackbar} from 'react-native-paper';
 import {useTranslation} from 'react-i18next';
 import RNRestart from 'react-native-restart';
 import Slider from '@react-native-community/slider';
@@ -19,10 +19,7 @@ import gamepad from '../common/settings/gamepad';
 import audio from '../common/settings/audio';
 import xcloud from '../common/settings/xcloud';
 import xhome from '../common/settings/xhome';
-import sensor from '../common/settings/sensor';
 import others from '../common/settings/others';
-
-const {UsbRumbleManager} = NativeModules;
 
 function SettingDetailScreen({navigation, route}) {
   const {t} = useTranslation();
@@ -32,6 +29,7 @@ function SettingDetailScreen({navigation, route}) {
   const [value2, setValue2] = React.useState('');
   const [currentMetas, setCurrentMetas] = React.useState(null);
   const [settings, setSettings] = React.useState({});
+  const [savedVisible, setSavedVisible] = React.useState(false);
   const regions = React.useRef([]);
   const xgpuRegions = React.useRef([]);
 
@@ -57,7 +55,6 @@ function SettingDetailScreen({navigation, route}) {
         ...audio,
         ...xcloud,
         ...xhome,
-        ...sensor,
         ...others,
       ];
       let metas = {};
@@ -80,11 +77,17 @@ function SettingDetailScreen({navigation, route}) {
       if (name === 'signaling_home' || name === 'signaling_cloud') {
         const rs =
           name === 'signaling_home' ? regions.current : xgpuRegions.current;
-        rs.forEach(region => {
-          if (region.isDefault) {
-            currentVal = region.name;
-          }
-        });
+        const savedVal = _settings[name];
+        if (savedVal && rs.some(region => region.name === savedVal)) {
+          // The user's saved choice wins over the token's current default.
+          currentVal = savedVal;
+        } else {
+          rs.forEach(region => {
+            if (region.isDefault) {
+              currentVal = region.name;
+            }
+          });
+        }
       }
 
       setValue(currentVal);
@@ -106,9 +109,13 @@ function SettingDetailScreen({navigation, route}) {
 
   const handleSave = () => {
     if (current === 'locale' || current === 'force_region_ip') {
+      // These take effect through a restart; save once and stop here so
+      // the save/navigation below does not also run.
       handleSaveSettings();
       restart();
-    } else if (current === 'xhome_bitrate_mode') {
+      return;
+    }
+    if (current === 'xhome_bitrate_mode') {
       settings.xhome_bitrate_mode = value;
       settings.xhome_bitrate = value2;
     } else if (current === 'xcloud_bitrate_mode') {
@@ -118,30 +125,25 @@ function SettingDetailScreen({navigation, route}) {
       settings.audio_bitrate_mode = value;
       settings.audio_bitrate = value2;
     } else if (currentMetas.name === 'signaling_home') {
-      regions.current.forEach(region => {
-        if (region.name === value) {
-          region.isDefault = true;
-        } else {
-          region.isDefault = false;
-        }
-      });
+      // Persist the choice in settings (handleSaveSettings below) and
+      // apply it to the live token so it takes effect immediately.
+      streamingTokens.xHomeToken &&
+        streamingTokens.xHomeToken.setDefaultRegion(value);
     } else if (currentMetas.name === 'signaling_cloud') {
-      xgpuRegions.current.forEach(region => {
-        if (region.name === value) {
-          region.isDefault = true;
-        } else {
-          region.isDefault = false;
-        }
-      });
-    } else if (currentMetas.name === 'bind_usb_device') {
-      UsbRumbleManager.setBindUsbDevice(value);
-    } else if (currentMetas.name === 'gamepad_kernal') {
-      settings.gamepad_maping = null;
-      settings.native_gamepad_maping = null;
+      streamingTokens.xCloudToken &&
+        streamingTokens.xCloudToken.setDefaultRegion(value);
     }
     handleSaveSettings();
-    ToastAndroid.show(t('Saved'), ToastAndroid.SHORT);
-    navigation.goBack();
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(t('Saved'), ToastAndroid.SHORT);
+      navigation.goBack();
+    } else {
+      // iOS has no ToastAndroid; show a brief confirmation, then go back.
+      setSavedVisible(true);
+      setTimeout(() => {
+        navigation.goBack();
+      }, 700);
+    }
   };
 
   const restart = () => {
@@ -204,18 +206,24 @@ function SettingDetailScreen({navigation, route}) {
         currentMetas.name === 'signaling_home'
           ? regions.current
           : xgpuRegions.current;
+      if (!servers || servers.length === 0) {
+        return (
+          <View style={styles.tips}>
+            <Text>
+              {t(
+                'No servers available yet. Please log in first, then reopen this page.',
+              )}
+            </Text>
+          </View>
+        );
+      }
       return (
         <RadioButton.Group onValueChange={val => setValue(val)} value={value}>
-          {servers &&
-            servers.map((item, idx) => {
-              return (
-                <RadioButton.Item
-                  key={idx}
-                  label={item.name}
-                  value={item.name}
-                />
-              );
-            })}
+          {servers.map((item, idx) => {
+            return (
+              <RadioButton.Item key={idx} label={item.name} value={item.name} />
+            );
+          })}
         </RadioButton.Group>
       );
     }
@@ -249,7 +257,7 @@ function SettingDetailScreen({navigation, route}) {
             onValueChange={val => {
               setValue(parseFloat(val.toFixed(2)));
             }}
-            lowerLimit={0.1}
+            lowerLimit={currentMetas.min}
             minimumTrackTintColor="#107C10"
             maximumTrackTintColor="grey"
           />
@@ -289,6 +297,13 @@ function SettingDetailScreen({navigation, route}) {
           {t('Back')}
         </Button>
       </View>
+
+      <Snackbar
+        visible={savedVisible}
+        onDismiss={() => setSavedVisible(false)}
+        duration={700}>
+        {t('Saved')}
+      </Snackbar>
     </View>
   );
 }

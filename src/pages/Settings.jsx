@@ -1,8 +1,7 @@
 import React from 'react';
-import {StyleSheet, ScrollView, Alert, View, NativeModules} from 'react-native';
+import {StyleSheet, ScrollView, Alert, View} from 'react-native';
 import {Text} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
-import {getSettings} from '../store/settingStore';
 import SettingItem from '../components/SettingItem';
 import {useSelector} from 'react-redux';
 import RNRestart from 'react-native-restart';
@@ -16,12 +15,9 @@ import gamepad from '../common/settings/gamepad';
 import audio from '../common/settings/audio';
 import xcloud from '../common/settings/xcloud';
 import xhome from '../common/settings/xhome';
-import sensor from '../common/settings/sensor';
 import others from '../common/settings/others';
 
 import pkg from '../../package.json';
-
-const {UsbRumbleManager} = NativeModules;
 
 const log = debugFactory('SettingsScreen');
 
@@ -59,25 +55,6 @@ function SettingsScreen({navigation}) {
           },
         },
       ]);
-    } else if (id === 'maping') {
-      const settings = getSettings();
-      const hasValidUsbDevice = await UsbRumbleManager.getHasValidUsbDevice();
-      const isUsbMode = settings.bind_usb_device && hasValidUsbDevice;
-      if (isUsbMode) {
-        Alert.alert(
-          t(
-            'After replacing the Android controller driver, controller button mapping is temporarily not supported',
-          ),
-        );
-        return;
-      }
-      if (settings.gamepad_kernal === 'Web') {
-        navigation.navigate('GameMap');
-      } else {
-        navigation.navigate('NativeGameMap');
-      }
-    } else if (id === 'debug') {
-      navigation.navigate('Debug');
     } else {
       navigation.navigate('SettingDetail', {
         id,
@@ -131,6 +108,16 @@ function SettingsScreen({navigation}) {
               />
             );
           })}
+
+          <SettingItem
+            title={t('Picture settings')}
+            description={t(
+              'Adjust sharpness, saturation, contrast and brightness',
+            )}
+            onPress={() => {
+              navigation.navigate('Display');
+            }}
+          />
         </View>
 
         <View>
@@ -241,11 +228,11 @@ function SettingsScreen({navigation}) {
             onPress={() => navigation.navigate('About')}
           />
 
-          {/* <SettingItem
-            title={'DEBUG'}
-            description={'Enter debug'}
-            onPress={() => handleItemPress('debug')}
-          /> */}
+          <SettingItem
+            title={t('Feedback')}
+            description={t('Community and support the author')}
+            onPress={() => navigation.navigate('Feedback')}
+          />
 
           {profile && profile.GameDisplayName ? (
             <SettingItem

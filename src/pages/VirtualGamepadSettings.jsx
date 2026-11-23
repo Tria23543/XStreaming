@@ -13,6 +13,7 @@ import {
   TextInput,
 } from 'react-native-paper';
 import {useTranslation} from 'react-i18next';
+import {useIsFocused} from '@react-navigation/native';
 import {
   getSettings as getUserSettings,
   saveSettings as saveUserSettings,
@@ -26,6 +27,7 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
   const [userSettings, setUserSettings] = React.useState({});
   const [settings, setSettings] = React.useState([]);
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const isFocused = useIsFocused();
 
   React.useEffect(() => {
     navigation.setOptions({
@@ -39,14 +41,21 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
         />
       ),
     });
+  }, [navigation]);
 
+  // Reload the layout list every time this page is shown, so layouts that
+  // were just created, edited or deleted in the editor appear correctly.
+  React.useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
     const _settings = getSettings();
     setSettings(Object.keys(_settings));
 
     const _userSettings = getUserSettings();
     setUserSettings(_userSettings);
     setValue(_userSettings.custom_virtual_gamepad || '');
-  }, [navigation]);
+  }, [isFocused]);
 
   const handleSave = () => {
     userSettings.custom_virtual_gamepad = value;
@@ -66,6 +75,9 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
   if (!name.trim()) {
     isError = true;
     errorText = t('Name can not be empty');
+  } else if (settings.includes(name.trim())) {
+    isError = true;
+    errorText = t('Name already exists');
   }
 
   return (
@@ -89,7 +101,9 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
                   if (!isError) {
                     setShowAddModal(false);
                     setTimeout(() => {
-                      navigation.navigate('CustomGamepad', {name});
+                      navigation.navigate('CustomGamepad', {
+                        name: name.trim(),
+                      });
                     }, 300);
                   }
                 }}>

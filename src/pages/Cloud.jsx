@@ -200,7 +200,7 @@ function CloudScreen({navigation, route}) {
       return (
         <ActivityIndicator
           size="large"
-          color="#0000ff"
+          color="#107C10"
           style={styles.loadingIndicator}
         />
       );

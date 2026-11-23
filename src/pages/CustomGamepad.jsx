@@ -188,16 +188,20 @@ function CustomGamepadScreen({navigation, route}) {
       setShowWarnShowModal(true);
     }, 500);
 
-    navigation.addListener('beforeRemove', e => {
-      if (e.data.action.type !== 'GO_BACK') {
-        navigation.dispatch(e.data.action);
-      } else {
-        e.preventDefault();
-        setActionShowModal(true);
-      }
-    });
+    const unsubscribeBeforeRemove = navigation.addListener(
+      'beforeRemove',
+      e => {
+        if (e.data.action.type !== 'GO_BACK') {
+          navigation.dispatch(e.data.action);
+        } else {
+          e.preventDefault();
+          setActionShowModal(true);
+        }
+      },
+    );
 
     return () => {
+      unsubscribeBeforeRemove();
       Orientation.unlockAllOrientations();
       FullScreenManager.immersiveModeOff();
     };
@@ -245,7 +249,7 @@ function CustomGamepadScreen({navigation, route}) {
   const handleSave = () => {
     // console.log('buttons:', buttons);
     saveSettings(title, buttons);
-    navigation.navigate('Settings');
+    navigation.navigate('VirtualGamepadSettings');
   };
 
   const handleReset = () => {
@@ -259,7 +263,7 @@ function CustomGamepadScreen({navigation, route}) {
       saveUserSettings(userSettings);
     }
     deleteSetting(title);
-    navigation.navigate('Settings');
+    navigation.navigate('VirtualGamepadSettings');
   };
 
   const renderWarningModal = () => {
@@ -377,22 +381,22 @@ function CustomGamepadScreen({navigation, route}) {
 
       <>
         {buttons.map(button => {
+          // Hidden buttons stay visible (dimmed) in the editor so they can
+          // be selected and shown again; hiding only affects the game.
+          const isHidden = button.show === false;
           if (button.name === 'LeftStick' || button.name === 'RightStick') {
-            if (!button.show) {
-              return null;
-            }
             return (
               <Draggable
                 x={button.x}
                 y={button.y}
                 key={button.name + reloader}
                 renderSize={100}
-                renderColor="white"
+                renderColor={isHidden ? 'grey' : 'white'}
                 isCircle
                 onShortPressRelease={() => {
                   setCurrentButton(button.name);
                   setCurrentScale(1);
-                  setCurrentShow(button.show || true);
+                  setCurrentShow(!isHidden);
                   setShowModal(true);
                 }}
                 onDragRelease={event => {
@@ -406,9 +410,6 @@ function CustomGamepadScreen({navigation, route}) {
               />
             );
           } else {
-            if (!button.show) {
-              return null;
-            }
             return (
               <Draggable
                 x={button.x}
@@ -417,7 +418,7 @@ function CustomGamepadScreen({navigation, route}) {
                 onShortPressRelease={() => {
                   setCurrentButton(button.name);
                   setCurrentScale(button.scale || 1);
-                  setCurrentShow(button.show || true);
+                  setCurrentShow(!isHidden);
                   setShowModal(true);
                 }}
                 onDragRelease={event => {
@@ -428,12 +429,14 @@ function CustomGamepadScreen({navigation, route}) {
                   );
                   setReloader(Date.now());
                 }}>
-                <GamepadButton
-                  name={button.name}
-                  width={button.width}
-                  height={button.height}
-                  scale={button.scale}
-                />
+                <View style={{opacity: isHidden ? 0.3 : 1}}>
+                  <GamepadButton
+                    name={button.name}
+                    width={button.width}
+                    height={button.height}
+                    scale={button.scale}
+                  />
+                </View>
               </Draggable>
             );
           }

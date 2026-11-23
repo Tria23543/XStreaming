@@ -34,10 +34,17 @@ function ArchivementDetail({navigation, route}) {
     if (route.params?.titleId) {
       setLoading(true);
       const webApi = new WebApi(webToken);
-      webApi.getAchivementDetail(route.params?.titleId).then(data => {
-        setArchivements(data);
-        setLoading(false);
-      });
+      webApi
+        .getAchivementDetail(route.params?.titleId)
+        .then(data => {
+          setArchivements(data);
+        })
+        .catch(e => {
+          log.error('GetAchivementDetail error:', e?.message || e);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
     navigation.setOptions({
       title: route.params?.name || '',
@@ -56,12 +63,17 @@ function ArchivementDetail({navigation, route}) {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    const webApi = new WebApi(webToken);
-    if (route.params?.titleId) {
-      const resultes = await webApi.getAchivementDetail(route.params.titleId);
-      setArchivements(resultes);
-      setRefreshing(false);
-    } else {
+    try {
+      const webApi = new WebApi(webToken);
+      if (route.params?.titleId) {
+        const resultes = await webApi.getAchivementDetail(
+          route.params.titleId,
+        );
+        setArchivements(resultes);
+      }
+    } catch (e) {
+      log.error('GetAchivementDetail refresh error:', e?.message || e);
+    } finally {
       setRefreshing(false);
     }
   }, [webToken, route.params?.titleId]);

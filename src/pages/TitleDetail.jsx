@@ -1,20 +1,11 @@
 import React from 'react';
-import {StyleSheet, View, ScrollView, Image, NativeModules} from 'react-native';
-import {
-  Text,
-  Button,
-  Portal,
-  Modal,
-  Card,
-  HelperText,
-} from 'react-native-paper';
+import {StyleSheet, View, ScrollView, Image} from 'react-native';
+import {Text, Button, HelperText} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {getSettings} from '../store/settingStore';
 import {useTranslation} from 'react-i18next';
 import {debugFactory} from '../utils/debug';
 import {getTitleBadge, isEntitled} from '../components/TitleItem';
-
-const {UsbRumbleManager} = NativeModules;
 
 const log = debugFactory('TitleDetailScreen');
 
@@ -22,7 +13,6 @@ function TitleDetail({navigation, route}) {
   const {t} = useTranslation();
   const [titleItem, setTitleItem] = React.useState(null);
   const [settings, setSettings] = React.useState({});
-  const [showUsbWarnModal, setShowUsbWarnShowModal] = React.useState(false);
 
   React.useEffect(() => {
     log.info('TitleDetail titleItem:', route.params?.titleItem);
@@ -36,75 +26,16 @@ function TitleDetail({navigation, route}) {
     });
   }, [route.params?.titleItem, navigation]);
 
-  const handleStartGame = async () => {
+  const handleStartGame = () => {
     log.info('HandleStartCloudGame titleId:', titleItem.XCloudTitleId);
-    const hasValidUsbDevice = await UsbRumbleManager.getHasValidUsbDevice();
-    const isUsbMode = settings.bind_usb_device && hasValidUsbDevice;
-
-    if (isUsbMode) {
-      setShowUsbWarnShowModal(true);
-    } else {
-      handleNavigateStream();
-    }
-  };
-
-  const handleNavigateStream = async () => {
-    const hasValidUsbDevice = await UsbRumbleManager.getHasValidUsbDevice();
-    const usbController = await UsbRumbleManager.getUsbController();
-    const isUsbMode = settings.bind_usb_device && hasValidUsbDevice;
-
     navigation.navigate({
       name: 'Stream',
       params: {
         sessionId: titleItem.titleId || titleItem.XCloudTitleId,
         settings,
         streamType: 'cloud',
-        isUsbMode,
-        usbController,
       },
     });
-  };
-
-  // Warn: xboxOne controller must press Nexus button first to active button
-  const renderUsbWarningModal = () => {
-    if (!showUsbWarnModal) {
-      return null;
-    }
-    return (
-      <Portal>
-        <Modal
-          visible={showUsbWarnModal}
-          onDismiss={() => {
-            setShowUsbWarnShowModal(false);
-          }}
-          contentContainerStyle={{marginLeft: '4%', marginRight: '4%'}}>
-          <Card>
-            <Card.Content>
-              <Text>
-                TIPS1:{' '}
-                {t(
-                  'It has been detected that you are using the wired connection mode with the Overwrite Android driver. If the USB connection is disconnected during the game, please exit the game and reconnect the controller; otherwise, the controller buttons will become unresponsive',
-                )}
-              </Text>
-              <Text>
-                TIPS2:{' '}
-                {t(
-                  'If you are using an Xbox One/S/X controller and encounter unresponsive buttons when entering the game, please press the home button on the controller first',
-                )}
-              </Text>
-
-              <Button
-                onPress={() => {
-                  setShowUsbWarnShowModal(false);
-                  handleNavigateStream();
-                }}>
-                {t('Confirm')}
-              </Button>
-            </Card.Content>
-          </Card>
-        </Modal>
-      </Portal>
-    );
   };
 
   let isByorg = false;
@@ -128,8 +59,6 @@ function TitleDetail({navigation, route}) {
         textContent={t('Loading...')}
         textStyle={styles.spinnerTextStyle}
       />
-
-      {renderUsbWarningModal()}
 
       {titleItem && (
         <>

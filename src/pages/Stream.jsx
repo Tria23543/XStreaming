@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
-  ToastAndroid,
   Platform,
 } from 'react-native';
 import {
@@ -20,6 +19,7 @@ import {
   IconButton,
   TextInput,
   Text,
+  Snackbar,
 } from 'react-native-paper';
 import {WebView} from 'react-native-webview';
 import Orientation from 'react-native-orientation-locker';
@@ -153,6 +153,7 @@ function StreamScreen({navigation, route}) {
   const [modalMaxHeight, setModalMaxHeight] = React.useState(250);
   const [message, setMessage] = React.useState('');
   const [messageSending, setMessageSending] = React.useState(false);
+  const [toastText, setToastText] = React.useState('');
 
   const controllerEventListener = React.useRef(undefined);
   const timer = React.useRef(undefined);
@@ -236,22 +237,28 @@ function StreamScreen({navigation, route}) {
       log.info('Stream screen receive streamType:', route.params?.streamType);
     }
     if (streamingTokens.xHomeToken) {
-      const _xHomeApi = new XcloudApi(
-        streamingTokens.xHomeToken.getDefaultRegion().baseUri,
-        streamingTokens.xHomeToken.data.gsToken,
-        'home',
-        authentication,
-      );
-      setXHomeApi(_xHomeApi);
+      const region = streamingTokens.xHomeToken.getDefaultRegion();
+      if (region) {
+        const _xHomeApi = new XcloudApi(
+          region.baseUri,
+          streamingTokens.xHomeToken.data.gsToken,
+          'home',
+          authentication,
+        );
+        setXHomeApi(_xHomeApi);
+      }
     }
     if (streamingTokens.xCloudToken) {
-      const _xCloudApi = new XcloudApi(
-        streamingTokens.xCloudToken.getDefaultRegion().baseUri,
-        streamingTokens.xCloudToken.data.gsToken,
-        'cloud',
-        authentication,
-      );
-      setXCloudApi(_xCloudApi);
+      const region = streamingTokens.xCloudToken.getDefaultRegion();
+      if (region) {
+        const _xCloudApi = new XcloudApi(
+          region.baseUri,
+          streamingTokens.xCloudToken.data.gsToken,
+          'cloud',
+          authentication,
+        );
+        setXCloudApi(_xCloudApi);
+      }
     }
 
     setTimeout(() => {
@@ -302,14 +309,16 @@ function StreamScreen({navigation, route}) {
     const webApi = new WebApi(webToken);
     setMessageSending(true);
     let text = message.trim();
-    if (message > 100) {
+    if (text.length > 100) {
       text = text.substring(0, 100);
     }
     try {
       await webApi.sendText(route.params?.sessionId, text);
       setMessage('');
-      ToastAndroid.show(t('Sended'), ToastAndroid.SHORT);
-    } catch (e) {}
+      setToastText(t('Sent'));
+    } catch (e) {
+      setToastText(t('Failed to send'));
+    }
     setMessageSending(false);
   };
 
@@ -318,7 +327,7 @@ function StreamScreen({navigation, route}) {
       return;
     }
     setIsExiting(true);
-    streamApi.stopStream().then(() => {
+    const finishExit = () => {
       if (needPoweroff) {
         handlePowerOff();
       }
@@ -330,17 +339,33 @@ function StreamScreen({navigation, route}) {
           params: {needRefresh: true},
         });
       }, 500);
-    });
+    };
+    if (!streamApi) {
+      finishExit();
+      return;
+    }
+    streamApi
+      .stopStream()
+      .then(finishExit)
+      .catch(() => finishExit());
   };
 
   const handleTimeoutExit = () => {
-    streamApi.stopStream().then(() => {
+    const finishTimeoutExit = () => {
       authentication._tokenStore &&
         authentication._tokenStore.clearTokenUpdateTime();
       setTimeout(() => {
         RNRestart.restart();
       }, 100);
-    });
+    };
+    if (!streamApi) {
+      finishTimeoutExit();
+      return;
+    }
+    streamApi
+      .stopStream()
+      .then(finishTimeoutExit)
+      .catch(() => finishTimeoutExit());
   };
 
   const handleCloseModal = () => {
@@ -386,7 +411,7 @@ function StreamScreen({navigation, route}) {
                 const error = t('noAllow');
                 msg = '[StartSession] Fail:' + error;
               } else {
-                msg = '[StartSession] Fail:' + e;
+                msg = '[StartSession] Fail:' + ((e && e.message) || String(e));
               }
             }
             Alert.alert(t('Warning'), msg, [
@@ -415,15 +440,19 @@ function StreamScreen({navigation, route}) {
           postData2Webview('sendSDPOfferEnd', sdpDetails);
         })
         .catch(e => {
-          Alert.alert(t('Warning'), '[sendSDPOffer] fail:' + e, [
-            {
-              text: t('Confirm'),
-              style: 'default',
-              onPress: () => {
-                handleExit();
+          Alert.alert(
+            t('Warning'),
+            '[sendSDPOffer] fail:' + ((e && e.message) || String(e)),
+            [
+              {
+                text: t('Confirm'),
+                style: 'default',
+                onPress: () => {
+                  handleExit();
+                },
               },
-            },
-          ]);
+            ],
+          );
         });
     }
     if (type === 'sendICEReady') {
@@ -436,15 +465,19 @@ function StreamScreen({navigation, route}) {
           postData2Webview('sendIceEnd', candidates);
         })
         .catch(e => {
-          Alert.alert(t('Warning'), '[sendICECandidates] fail:' + e, [
-            {
-              text: t('Confirm'),
-              style: 'default',
-              onPress: () => {
-                handleExit();
+          Alert.alert(
+            t('Warning'),
+            '[sendICECandidates] fail:' + ((e && e.message) || String(e)),
+            [
+              {
+                text: t('Confirm'),
+                style: 'default',
+                onPress: () => {
+                  handleExit();
+                },
               },
-            },
-          ]);
+            ],
+          );
         });
     }
     if (type === 'sendKeepalive') {
@@ -551,7 +584,7 @@ function StreamScreen({navigation, route}) {
     if (type === 'connectionstate') {
       setConnectState(message);
       if (message === CONNECTED) {
-        ToastAndroid.show(t('Connected'), ToastAndroid.SHORT);
+        setToastText(t('Connected'));
         setShowTipsModal(true);
       }
       // Alway show virtual gamepad
@@ -564,7 +597,7 @@ function StreamScreen({navigation, route}) {
         setShowPerformance(true);
 
         if (settings.gamepad_kernal === 'Web') {
-          handleToggleWebviewPerformance();
+          handleToggleWebviewPerformance(true);
         }
       }
     }
@@ -579,8 +612,10 @@ function StreamScreen({navigation, route}) {
     }
   };
 
-  const handleToggleWebviewPerformance = () => {
-    if (showPerformance) {
+  const handleToggleWebviewPerformance = next => {
+    // Take the target value explicitly: callers set state and toggle in the
+    // same tick, so reading showPerformance here would use a stale value.
+    if (next) {
       postData2Webview('showPerformance', {});
     } else {
       postData2Webview('hidePerformance', {});
@@ -802,15 +837,12 @@ function StreamScreen({navigation, route}) {
                       title={t('Toggle Stats')}
                       background={background}
                       onPress={() => {
+                        const next = !showPerformance;
+                        setShowPerformance(next);
                         if (settings.gamepad_kernal === 'Web') {
-                          setShowPerformance(!showPerformance);
-                          setTimeout(() => {
-                            handleToggleWebviewPerformance();
-                            webviewRef.current &&
-                              webviewRef.current.requestFocus();
-                          }, 10);
-                        } else {
-                          setShowPerformance(!showPerformance);
+                          handleToggleWebviewPerformance(next);
+                          webviewRef.current &&
+                            webviewRef.current.requestFocus();
                         }
                         handleCloseModal();
                       }}
@@ -1008,6 +1040,13 @@ function StreamScreen({navigation, route}) {
           />
         )}
       </View>
+
+      <Snackbar
+        visible={toastText !== ''}
+        onDismiss={() => setToastText('')}
+        duration={1500}>
+        {toastText}
+      </Snackbar>
     </>
   );
 }

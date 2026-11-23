@@ -8,22 +8,32 @@ function FeedbackScreen({navigation, route}) {
     <ScrollView style={styles.container}>
       <View style={styles.block}>
         <View style={styles.title}>
-          <Text variant="titleLarge">交流</Text>
+          <Text variant="titleLarge">Community</Text>
         </View>
         <View>
           <Text variant="titleMedium">
-            喜欢折腾、主机串流、云游戏及串流技术开发，欢迎加入群聊
+            Interested in console streaming, cloud gaming and streaming
+            technology? You are welcome to join the author's QQ group chat.
           </Text>
-          <Text variant="titleMedium">群号：964721224</Text>
+          <Text variant="titleMedium">QQ group: 964721224</Text>
         </View>
       </View>
 
       <View style={styles.block}>
         <View style={styles.title}>
-          <Text variant="titleLarge">赞赏</Text>
+          <Text variant="titleLarge">Support the author</Text>
         </View>
 
-        <View style={{paddingBottom: 50}}>
+        <View>
+          <Text variant="titleMedium">
+            You can also support XStreaming through GitHub Sponsors:
+          </Text>
+          <LinkText url={'https://github.com/sponsors/Geocld'}>
+            https://github.com/sponsors/Geocld
+          </LinkText>
+        </View>
+
+        <View style={{paddingBottom: 50, paddingTop: 20}}>
           <Image
             source={require('../assets/feedback/wx_sponsor.png')}
             style={{width: '100%', height: 400}}

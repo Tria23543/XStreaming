@@ -25,16 +25,27 @@ function AchivementScreen({navigation}) {
       .getHistoryAchivements()
       .then(data => {
         setArchivements(data);
-        setLoading(false);
       })
       .catch(e => {
-        log('GetHistoryAchivements error:', e);
+        log.error('GetHistoryAchivements error:', e?.message || e);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, [webToken]);
 
   const formatTime = isoString => {
     const date = moment(isoString).local();
     return date.format('YYYY-MM-DD HH:mm:ss');
+  };
+
+  const scoreRatio = infos => {
+    const max = Number(infos.maxGamerscore) || 0;
+    const cur = Number(infos.currentGamerscore) || 0;
+    if (max <= 0) {
+      return 0;
+    }
+    return Math.min(Math.max(cur / max, 0), 1);
   };
 
   return (
@@ -56,7 +67,7 @@ function AchivementScreen({navigation}) {
                 style={styles.card}
                 key={infos.titleId || idx}
                 onPress={() => {
-                  navigation.navigate('AchivementDetail', {
+                  navigation.navigate('AchievementDetail', {
                     name: infos.name,
                     titleId: infos.titleId,
                   });
@@ -73,22 +84,18 @@ function AchivementScreen({navigation}) {
                     </Text>
                   </View>
                   <View style={styles.progressBar}>
-                    <ProgressBar
-                      progress={infos.currentGamerscore / infos.maxGamerscore}
-                    />
+                    <ProgressBar progress={scoreRatio(infos)} />
                   </View>
                   <View style={styles.footer}>
                     <View style={styles.score}>
                       <Text style={styles.text} variant="titleSmall">
-                        {t('score')}: {infos.currentGamerscore}/
+                        {t('Score')}: {infos.currentGamerscore}/
                         {infos.maxGamerscore}
                       </Text>
                     </View>
                     <View style={styles.percent}>
                       <Text style={styles.text} variant="titleSmall">
-                        {Math.floor(
-                          (infos.currentGamerscore / infos.maxGamerscore) * 100,
-                        ) + '%'}
+                        {Math.floor(scoreRatio(infos) * 100) + '%'}
                       </Text>
                     </View>
                   </View>

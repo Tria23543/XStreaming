@@ -27,17 +27,31 @@ function FriendsScreen({navigation}) {
       .getFriends()
       .then(data => {
         setFriends(data);
-        setLoading(false);
       })
       .catch(e => {
-        log('GetFriends error:', e);
+        log.error('GetFriends error:', e?.message || e);
+      })
+      .finally(() => {
+        setLoading(false);
       });
 
     timer.current = setInterval(() => {
-      webApi.getFriends().then(data => {
-        setFriends(data);
-      });
+      webApi
+        .getFriends()
+        .then(data => {
+          setFriends(data);
+        })
+        .catch(e => {
+          log.error('GetFriends polling error:', e?.message || e);
+        });
     }, 30 * 1000);
+
+    return () => {
+      if (timer.current) {
+        clearInterval(timer.current);
+        timer.current = null;
+      }
+    };
   }, [webToken]);
 
   const drawPresence = userinfo => {
@@ -55,10 +69,15 @@ function FriendsScreen({navigation}) {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    const webApi = new WebApi(webToken);
-    const _friends = await webApi.getFriends();
-    setFriends(_friends);
-    setRefreshing(false);
+    try {
+      const webApi = new WebApi(webToken);
+      const _friends = await webApi.getFriends();
+      setFriends(_friends);
+    } catch (e) {
+      log.error('GetFriends refresh error:', e?.message || e);
+    } finally {
+      setRefreshing(false);
+    }
   }, [webToken]);
 
   return (
