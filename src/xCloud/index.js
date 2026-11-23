@@ -590,13 +590,14 @@ export default class XcloudApi {
     });
   }
 
-  getGamePassProducts(titles) {
+  getGamePassProducts(titles, onProgress) {
     return new Promise((resolve, reject) => {
       const productIdQueue = [];
       const v2TitleMap = {};
       if (!Array.isArray(titles)) {
         log.info('[getGamePassProducts] error titles is not a array:', titles);
         resolve([]);
+        return;
       }
       titles.forEach(title => {
         if (title.details && title.details.productId) {
@@ -606,57 +607,69 @@ export default class XcloudApi {
       });
 
       // Get officialTitles
-      this.getOfficialTitles().then(officialTitles => {
+      this.getOfficialTitles().then(async officialTitles => {
         // Fix: v2/titles API can not get full games
         const mergeProductIds = [
           ...new Set([...productIdQueue, ...officialTitles]),
         ];
-        axios
-          .post(
-            'https://catalog.gamepass.com/v3/products?market=US&language=en-US&hydration=RemoteLowJade0',
-            {
-              Products: mergeProductIds,
-            },
-            {
-              headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'ms-cv': 0,
-                'calling-app-name': 'Xbox Cloud Gaming Web',
-                'calling-app-version': '24.17.63',
+        // Hydrate in chunks and report progress after each chunk, so the
+        // library screen can fill in progressively instead of waiting for
+        // one giant request covering thousands of products.
+        const mergedById = {};
+        const CHUNK_SIZE = 200;
+        try {
+          for (let i = 0; i < mergeProductIds.length; i += CHUNK_SIZE) {
+            const chunk = mergeProductIds.slice(i, i + CHUNK_SIZE);
+            const res = await axios.post(
+              'https://catalog.gamepass.com/v3/products?market=US&language=en-US&hydration=RemoteLowJade0',
+              {
+                Products: chunk,
               },
-            },
-          )
-          .then(res => {
+              {
+                headers: {
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                  'ms-cv': 0,
+                  'calling-app-name': 'Xbox Cloud Gaming Web',
+                  'calling-app-version': '24.17.63',
+                },
+              },
+            );
             if (res.data && res.data.Products) {
               const products = res.data.Products;
-              const mergedTitles = [];
               for (const key in products) {
                 if (v2TitleMap[key]) {
-                  mergedTitles.push({
+                  mergedById[key] = {
                     productId: key,
                     ...products[key],
                     ...v2TitleMap[key],
-                  });
+                  };
                 } else {
-                  mergedTitles.push({
+                  mergedById[key] = {
                     productId: key,
                     ...products[key],
-                  });
+                  };
                 }
               }
-              mergedTitles.sort((a, b) =>
-                a.ProductTitle.localeCompare(b.ProductTitle),
-              );
-              resolve(mergedTitles);
-            } else {
-              resolve([]);
             }
-          })
-          .catch(e => {
-            log.info('getGamePassProducts error:', e);
-            reject(e);
-          });
+            if (onProgress) {
+              const partial = Object.values(mergedById);
+              partial.sort((a, b) =>
+                (a.ProductTitle || '').localeCompare(b.ProductTitle || ''),
+              );
+              onProgress(partial);
+            }
+          }
+        } catch (e) {
+          log.info('getGamePassProducts error:', e);
+          reject(e);
+          return;
+        }
+        const mergedTitles = Object.values(mergedById);
+        mergedTitles.sort((a, b) =>
+          (a.ProductTitle || '').localeCompare(b.ProductTitle || ''),
+        );
+        resolve(mergedTitles);
       });
     });
   }
