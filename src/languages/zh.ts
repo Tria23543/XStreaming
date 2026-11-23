@@ -93,8 +93,7 @@ export default {
     'Current user': '当前用户',
     'Powered on': '开机',
     Theme: '主题',
-    'Set the app theme to take effect on the next launch':
-      '设置APP主题，下次启动生效',
+    'Set the app theme, takes effect immediately': '设置APP主题，立即生效',
     'Signal server': '信令服务器',
     'Virtual gamepad': '虚拟手柄',
     'Always display the virtual gamepad': '始终显示虚拟手柄',
