@@ -223,6 +223,15 @@ export default class Xal {
     // account just signed in. refreshTokens recreates the Sisu token
     // from the new user token, so dropping it here is safe.
     tokenStore.clearSisuToken();
+    // The in-memory token caches belong to the previous session too:
+    // getWebToken/getStreamingToken reuse them for as long as they
+    // stay valid (hours), so without this a different account signing
+    // in interactively would keep running on the previous account's
+    // web and streaming tokens while the stored tokens are the new
+    // account's. They are re-minted from the new Sisu token on demand.
+    this._webToken = undefined;
+    this._xhomeToken = undefined;
+    this._xcloudToken = undefined;
     tokenStore.save();
     return true;
   }
