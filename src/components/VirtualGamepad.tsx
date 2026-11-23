@@ -16,17 +16,29 @@ const VirtualGamepad: React.FC<Props> = ({
   onPressOut,
   onStickMove,
 }) => {
-  const handlePressIn = (name: string) => {
-    onPressIn && onPressIn(name);
-  };
+  // Stable identities: GamepadButton memoises its gesture object on
+  // these callbacks, so fresh inline closures here would rebuild
+  // every button's gesture on every render and defeat the memo.
+  const handlePressIn = React.useCallback(
+    (name: string) => {
+      onPressIn && onPressIn(name);
+    },
+    [onPressIn],
+  );
 
-  const handlePressOut = (name: string) => {
-    onPressOut && onPressOut(name);
-  };
+  const handlePressOut = React.useCallback(
+    (name: string) => {
+      onPressOut && onPressOut(name);
+    },
+    [onPressOut],
+  );
 
-  const handleStickMove = (id: string, data: any) => {
-    onStickMove && onStickMove(id, data);
-  };
+  const handleStickMove = React.useCallback(
+    (id: string, data: any) => {
+      onStickMove && onStickMove(id, data);
+    },
+    [onStickMove],
+  );
 
   const {width} = Dimensions.get('window');
 
@@ -198,7 +210,8 @@ const styles = StyleSheet.create({
     zIndex: 9,
   },
   button: {
-    opacity: 0.5,
+    // No opacity here: every call site passes its own {opacity}, so a
+    // value in the base style was always overridden and never seen.
     position: 'absolute',
   },
   lt: {

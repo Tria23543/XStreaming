@@ -77,7 +77,7 @@ const ArchivementItem: React.FC<Props> = ({item}) => {
               </Text>
             </View>
           )}
-          <View style={styles.percent}>
+          <View>
             <Text variant="labelSmall">{Math.floor(progress * 100) + '%'}</Text>
           </View>
         </View>
@@ -141,7 +141,6 @@ const styles = StyleSheet.create({
   score: {
     flexDirection: 'row',
   },
-  percent: {},
   progressBar: {
     paddingTop: 5,
     paddingBottom: 10,

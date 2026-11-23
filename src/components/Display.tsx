@@ -21,13 +21,25 @@ const Display: React.FC<Props> = ({options, onChange}) => {
 
   React.useEffect(() => {
     // Merge over the defaults so a missing/partial options object never
-    // leaves the sliders blank.
+    // leaves the sliders blank. Values are clamped into each slider's
+    // range: an out-of-range stored value (corrupt/legacy options)
+    // could never be stepped back into range, because step() rejects
+    // any result outside [min, max].
+    const RANGES: any = {
+      sharpness: [0, 10],
+      saturation: [50, 150],
+      contrast: [50, 150],
+      brightness: [50, 150],
+    };
     const merged = {...defaultValue};
     if (options) {
       Object.keys(defaultValue).forEach(key => {
         const v = (options as any)[key];
         if (typeof v === 'number' && !isNaN(v)) {
-          (merged as any)[key] = v;
+          const range = RANGES[key];
+          (merged as any)[key] = range
+            ? Math.min(range[1], Math.max(range[0], v))
+            : v;
         }
       });
     }
@@ -51,10 +63,10 @@ const Display: React.FC<Props> = ({options, onChange}) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View>
       <View style={styles.block}>
         <View style={styles.title}>
-          <View style={styles.titleLeft}>
+          <View>
             <Text variant="titleMedium">{t('Sharpness')}</Text>
           </View>
           <View style={styles.titleRight}>
@@ -92,7 +104,7 @@ const Display: React.FC<Props> = ({options, onChange}) => {
 
       <View style={styles.block}>
         <View style={styles.title}>
-          <View style={styles.titleLeft}>
+          <View>
             <Text variant="titleMedium">{t('Saturation')}</Text>
           </View>
           <View style={styles.titleRight}>
@@ -126,7 +138,7 @@ const Display: React.FC<Props> = ({options, onChange}) => {
 
       <View style={styles.block}>
         <View style={styles.title}>
-          <View style={styles.titleLeft}>
+          <View>
             <Text variant="titleMedium">{t('Contrast')}</Text>
           </View>
           <View style={styles.titleRight}>
@@ -160,7 +172,7 @@ const Display: React.FC<Props> = ({options, onChange}) => {
 
       <View style={styles.block}>
         <View style={styles.title}>
-          <View style={styles.titleLeft}>
+          <View>
             <Text variant="titleMedium">{t('Brightness')}</Text>
           </View>
           <View style={styles.titleRight}>
@@ -196,7 +208,6 @@ const Display: React.FC<Props> = ({options, onChange}) => {
 };
 
 const styles = StyleSheet.create({
-  container: {},
   block: {
     marginBottom: 10,
   },
@@ -205,7 +216,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  titleLeft: {},
   titleRight: {
     flexDirection: 'row',
     alignItems: 'center',

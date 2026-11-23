@@ -3,12 +3,7 @@ import {StyleSheet, View} from 'react-native';
 import {Text} from 'react-native-paper';
 import {useTranslation} from 'react-i18next';
 
-type Props = {
-  // titleItem: any;
-  // onPress: (titleItem: any) => {};
-};
-
-const Empty: React.FC<Props> = () => {
+const Empty: React.FC = () => {
   const {t} = useTranslation();
   return (
     <View style={styles.container}>

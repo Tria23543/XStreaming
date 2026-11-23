@@ -19,12 +19,18 @@ const PerfPanel: React.FC<Props> = ({performance = {}}) => {
   const isHorizon = settings.performance_style;
 
   React.useEffect(() => {
+    let mounted = true;
     const getBattery = () => {
       if (!BatteryModule?.getBatteryLevel) {
         return;
       }
       BatteryModule.getBatteryLevel()
         .then((level: any) => {
+          // The promise can resolve after unmount; setting state then
+          // is a no-op warning in React 18 — guard it properly.
+          if (!mounted) {
+            return;
+          }
           const num = Number(level);
           if (level !== null && level !== undefined && !isNaN(num)) {
             setBattery(num);
@@ -42,6 +48,7 @@ const PerfPanel: React.FC<Props> = ({performance = {}}) => {
     batteryInterval.current = setInterval(getBattery, 2 * 60 * 1000);
 
     return () => {
+      mounted = false;
       batteryInterval.current && clearInterval(batteryInterval.current);
     };
   }, []);

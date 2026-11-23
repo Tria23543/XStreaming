@@ -2,6 +2,7 @@ import React from 'react';
 import {StyleSheet, View, Pressable, ActivityIndicator} from 'react-native';
 import {Text} from 'react-native-paper';
 import FastImage from 'react-native-fast-image';
+import {useTranslation} from 'react-i18next';
 
 type Props = {
   titleItem: any;
@@ -48,6 +49,7 @@ export function isEntitled(titleItem: any): boolean {
 }
 
 const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
+  const {t} = useTranslation();
   const [loading, setLoading] = React.useState(true);
 
   const badge = getTitleBadge(titleItem);
@@ -92,15 +94,15 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
         )}
         {badge === 'GP' ? (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>GAME PASS</Text>
+            <Text style={styles.badgeText}>{t('GAME PASS')}</Text>
           </View>
         ) : badge === 'OWNED' ? (
           <View style={[styles.badge, styles.badgeOwned]}>
-            <Text style={styles.badgeText}>OWNED</Text>
+            <Text style={styles.badgeText}>{t('OWNED')}</Text>
           </View>
         ) : badge === 'FREE' ? (
           <View style={[styles.badge, styles.badgeFree]}>
-            <Text style={styles.badgeText}>FREE</Text>
+            <Text style={styles.badgeText}>{t('FREE')}</Text>
           </View>
         ) : null}
         <View style={styles.descriptionContainer}>

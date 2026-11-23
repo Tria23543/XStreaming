@@ -28,12 +28,17 @@ const CustomVirtualGamepad: React.FC<Props> = ({
     const {width, height} = Dimensions.get('window');
 
     const _buttons = getDefaultButtons(width, height);
-    if (
-      _settings[title] &&
-      Array.isArray(_settings[title]) &&
-      _settings[title].length > 0
-    ) {
-      setButtons(_settings[title]);
+    // Validate entry by entry, not just "non-empty array": one null or
+    // malformed entry in a stored layout would otherwise throw during
+    // render and take down the whole in-game overlay.
+    const saved = _settings[title];
+    const validSaved = Array.isArray(saved)
+      ? saved.filter(
+          (b: any) => b && typeof b === 'object' && typeof b.name === 'string',
+        )
+      : [];
+    if (validSaved.length > 0) {
+      setButtons(validSaved);
     } else {
       // No saved layout (or an empty/corrupt one): fall back to defaults
       // instead of rendering no gamepad at all.
@@ -41,17 +46,29 @@ const CustomVirtualGamepad: React.FC<Props> = ({
     }
   }, [title]);
 
-  const handlePressIn = (name: string) => {
-    onPressIn && onPressIn(name);
-  };
+  // Stable identities: GamepadButton memoises its gesture object on
+  // these callbacks, so fresh inline closures here would rebuild
+  // every button's gesture on every render and defeat the memo.
+  const handlePressIn = React.useCallback(
+    (name: string) => {
+      onPressIn && onPressIn(name);
+    },
+    [onPressIn],
+  );
 
-  const handlePressOut = (name: string) => {
-    onPressOut && onPressOut(name);
-  };
+  const handlePressOut = React.useCallback(
+    (name: string) => {
+      onPressOut && onPressOut(name);
+    },
+    [onPressOut],
+  );
 
-  const handleStickMove = (id: string, data: any) => {
-    onStickMove && onStickMove(id, data);
-  };
+  const handleStickMove = React.useCallback(
+    (id: string, data: any) => {
+      onStickMove && onStickMove(id, data);
+    },
+    [onStickMove],
+  );
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
@@ -142,7 +159,8 @@ const styles = StyleSheet.create({
     zIndex: 9,
   },
   button: {
-    opacity: 0.5,
+    // No opacity here: every call site passes its own {opacity}, so a
+    // value in the base style was always overridden and never seen.
     position: 'absolute',
   },
 });

@@ -15,11 +15,10 @@ const ConsoleItem = (props: any) => {
   return (
     <Card>
       <Card.Content>
-        <View style={styles.consoleInfos}>
+        <View>
           <Text variant="titleLarge" style={styles.textCenter}>
             {consoleItem.name}
           </Text>
-          {/* <Divider /> */}
           <View style={styles.image}>
             <SvgXml xml={icons.ConsoleIcon} width={'100%'} height={80} />
           </View>
@@ -96,7 +95,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 5,
   },
-  consoleInfos: {},
   footer: {
     paddingTop: 10,
   },
