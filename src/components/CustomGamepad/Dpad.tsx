@@ -28,7 +28,11 @@ const Dpad: React.FC<Props> = ({
     <View
       style={[
         styles.dpad,
-        {width: size, height: size, transform: [{scale}]},
+        // Size the container by the scale instead of transforming it:
+        // a centre-anchored transform made the in-game pad sit up-left
+        // of where the layout editor's top-left-anchored preview showed
+        // it. Percentage geometry below scales with the container.
+        {width: size * scale, height: size * scale},
         style,
       ]}>
       <TouchableOpacity
