@@ -1,12 +1,7 @@
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Image,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
+import {StyleSheet, View, Pressable, ActivityIndicator} from 'react-native';
 import {Text} from 'react-native-paper';
+import FastImage from 'react-native-fast-image';
 
 type Props = {
   titleItem: any;
@@ -76,15 +71,25 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
             color="#107C10"
           />
         )}
-        <Image
-          source={{
-            uri: imageUrl,
-          }}
-          resizeMode={'cover'}
-          onLoad={() => setLoading(false)}
-          onError={() => setLoading(false)}
-          style={styles.image}
-        />
+        {imageUrl !== '' ? (
+          <FastImage
+            source={{
+              uri: imageUrl,
+              // Disk-cached on the phone: once a tile picture has been
+              // downloaded it is served from the cache on every later
+              // open instead of being fetched fresh (the stock Image
+              // component kept no reliable cache, so every open
+              // re-downloaded every picture).
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onLoad={() => setLoading(false)}
+            onError={() => setLoading(false)}
+            style={styles.image}
+          />
+        ) : (
+          <View style={styles.image} />
+        )}
         {badge === 'GP' ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>GAME PASS</Text>
