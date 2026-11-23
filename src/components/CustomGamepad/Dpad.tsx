@@ -84,9 +84,13 @@ const Dpad: React.FC<Props> = ({
 
 // Segment geometry is percentage-based so the cross fills whatever size
 // the layout assigns (layouts define the D-pad as 100x100 by default):
-// arms are 37.5% long and 25% thick, starting at 37.5%/62.5% offsets.
-// Every part of the cross stays inside the container, visible and
-// tappable exactly where it is drawn.
+// arms are 50% long and 25% thick, starting at 37.5% offsets, so
+// opposite arms meet exactly at the centre. They used to be 37.5%
+// long, which left the centre 25%x25% square covered by no segment —
+// a press aimed between directions registered nothing. Where the arm
+// ends overlap in the centre, the later-rendered segment takes the
+// press. Every part of the cross stays inside the container, visible
+// and tappable exactly where it is drawn.
 const styles = StyleSheet.create({
   dpad: {
     position: 'absolute',
@@ -95,7 +99,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   dpadLeft: {
-    width: '37.5%',
+    width: '50%',
     height: '25%',
     borderWidth: 2,
     borderColor: '#fff',
@@ -105,7 +109,7 @@ const styles = StyleSheet.create({
   },
   dpadTop: {
     width: '25%',
-    height: '37.5%',
+    height: '50%',
     borderWidth: 2,
     borderColor: '#fff',
     left: '37.5%',
@@ -113,21 +117,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   dpadRight: {
-    width: '37.5%',
+    width: '50%',
     height: '25%',
     borderWidth: 2,
     borderColor: '#fff',
-    left: '62.5%',
+    left: '50%',
     top: '37.5%',
     borderLeftWidth: 0,
   },
   dpadBottom: {
     width: '25%',
-    height: '37.5%',
+    height: '50%',
     borderWidth: 2,
     borderColor: '#fff',
     left: '37.5%',
-    top: '62.5%',
+    top: '50%',
     borderTopWidth: 0,
   },
 });

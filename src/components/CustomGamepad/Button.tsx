@@ -5,9 +5,12 @@ import icons from '../../common/virtualgp';
 
 type Props = {
   name: string;
-  width: number;
-  height: number;
-  scale: number;
+  // Optional, matching the destructuring defaults below (and the
+  // shared GamepadButton's Props): they were declared required while
+  // the implementation defaulted them.
+  width?: number;
+  height?: number;
+  scale?: number;
   style?: any;
 };
 
