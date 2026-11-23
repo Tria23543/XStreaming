@@ -4,8 +4,7 @@ import axios from 'axios';
 // creates something legitimately answers 201 (and 204 No Content),
 // and treating those as errors made callers report failures for
 // requests that had actually succeeded.
-const isSuccessStatus = (status: number) =>
-  status === 200 || status === 201 || status === 202 || status === 204;
+const isSuccessStatus = (status: number) => status >= 200 && status < 300;
 
 export default class Http {
   get(host: string, path: string, headers: any) {
