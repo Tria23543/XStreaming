@@ -34,6 +34,14 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
   // made here whenever the screen regains focus without unmounting.
   const valueLoadedRef = React.useRef(false);
   const isFocused = useIsFocused();
+  // Mirror of the selection for the focus effect below: the effect
+  // deliberately does not depend on `value` (it must run on focus
+  // changes, not on every selection change), but it still needs the
+  // current selection to validate it against the reloaded list.
+  const valueRef = React.useRef('');
+  React.useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   React.useEffect(() => {
     return () => {
@@ -72,6 +80,16 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
     if (!valueLoadedRef.current) {
       valueLoadedRef.current = true;
       setValue(_userSettings.custom_virtual_gamepad || '');
+    } else if (
+      valueRef.current &&
+      !Object.keys(_settings).includes(valueRef.current)
+    ) {
+      // The selected layout was deleted in the editor while this
+      // page was away: clear the selection instead of leaving Edit
+      // pointing at a name that no longer exists — the editor would
+      // load factory defaults under it, and saving there would
+      // silently recreate a layout the user just deleted.
+      setValue('');
     }
   }, [isFocused]);
 

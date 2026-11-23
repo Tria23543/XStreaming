@@ -11,8 +11,16 @@ const log = debugFactory('TitleDetailScreen');
 
 function TitleDetail({navigation, route}) {
   const {t} = useTranslation();
-  const [titleItem, setTitleItem] = React.useState(null);
-  const [loadFailed, setLoadFailed] = React.useState(false);
+  // Initialised FROM the route param: starting at null/false made
+  // the full-screen spinner flash for the first frame(s) even when a
+  // title was passed, and delayed the no-title error by a frame too.
+  // The effect below still keeps both in sync when params change.
+  const [titleItem, setTitleItem] = React.useState(
+    () => route.params?.titleItem || null,
+  );
+  const [loadFailed, setLoadFailed] = React.useState(
+    () => !route.params?.titleItem,
+  );
 
   React.useEffect(() => {
     log.info('TitleDetail titleItem:', route.params?.titleItem);

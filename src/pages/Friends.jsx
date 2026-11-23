@@ -6,6 +6,7 @@ import Empty from '../components/Empty';
 import {debugFactory} from '../utils/debug';
 import {useTranslation} from 'react-i18next';
 import {useSelector} from 'react-redux';
+import {useIsFocused} from '@react-navigation/native';
 import WebApi from '../web';
 
 const log = debugFactory('FriendsScreen');
@@ -16,9 +17,9 @@ function FriendsScreen({navigation}) {
   const [loading, setLoading] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
   const [friends, setFriends] = React.useState([]);
-  const timer = React.useRef(null);
 
   const webToken = useSelector(state => state.webToken);
+  const isFocused = useIsFocused();
 
   // Shared with onRefresh below: the pull-to-refresh fetch needs the
   // same unmount guard as the effect's fetches.
@@ -47,11 +48,25 @@ function FriendsScreen({navigation}) {
         }
       });
 
-    timer.current = setInterval(() => {
+    return () => {
+      cancelled = true;
+      mountedRef.current = false;
+    };
+  }, [webToken]);
+
+  // Poll for presence updates only while this screen is visible:
+  // the screen stays mounted under pushed screens, and polling
+  // there burns battery and network on a list nobody is looking at.
+  React.useEffect(() => {
+    if (!isFocused || !webToken) {
+      return;
+    }
+    const webApi = new WebApi(webToken);
+    const id = setInterval(() => {
       webApi
         .getFriends()
         .then(data => {
-          if (!cancelled) {
+          if (mountedRef.current) {
             setFriends(data);
           }
         })
@@ -59,16 +74,8 @@ function FriendsScreen({navigation}) {
           log.error('GetFriends polling error:', e?.message || e);
         });
     }, 30 * 1000);
-
-    return () => {
-      cancelled = true;
-      mountedRef.current = false;
-      if (timer.current) {
-        clearInterval(timer.current);
-        timer.current = null;
-      }
-    };
-  }, [webToken]);
+    return () => clearInterval(id);
+  }, [webToken, isFocused]);
 
   const drawPresence = userinfo => {
     for (const app in userinfo.presenceDetails) {

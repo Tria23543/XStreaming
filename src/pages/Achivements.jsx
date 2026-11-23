@@ -105,8 +105,8 @@ function AchivementScreen({navigation}) {
                   <View style={styles.footer}>
                     <View style={styles.score}>
                       <Text style={styles.text} variant="titleSmall">
-                        {t('Score')}: {infos.currentGamerscore}/
-                        {infos.maxGamerscore}
+                        {t('Score')}: {Number(infos.currentGamerscore) || 0}/
+                        {Number(infos.maxGamerscore) || 0}
                       </Text>
                     </View>
                     <View style={styles.percent}>
@@ -139,6 +139,13 @@ const styles = StyleSheet.create({
   listItem: {
     flex: 1,
     borderRadius: 5,
+  },
+  title: {
+    flexDirection: 'row',
+  },
+  time: {
+    flexDirection: 'row',
+    marginTop: 2,
   },
   text: {
     fontWeight: 'bold',

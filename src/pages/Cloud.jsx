@@ -88,6 +88,8 @@ function CloudScreen({navigation, route}) {
   const cacheSavedAt = React.useRef(0);
   const lastFetchToken = React.useRef(null);
   const fetchGamesRef = React.useRef(null);
+  const catalogRetryTimerRef = React.useRef(null);
+  const catalogRetryCountRef = React.useRef(0);
   // Mirror of the current streaming token, readable inside async
   // fetch completions: a fetch that finishes after the token changed
   // (e.g. a different account signed in) must not apply or cache its
@@ -156,7 +158,7 @@ function CloudScreen({navigation, route}) {
   // wait back and the Retry button might never appear.
   React.useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
-      if (state.isConnected && !xCloudToken) {
+      if (state.isConnected !== false && !xCloudToken) {
         doAuthCheck();
       }
     });
@@ -332,23 +334,44 @@ function CloudScreen({navigation, route}) {
       };
       const fail = e => {
         finish();
-        if (cancelled) {
-          return;
-        }
         // The token changed while this fetch ran and the fetch then
         // failed: the failure belongs to the previous token. Do not
         // alert for it in the new session — fetch afresh for the
-        // current token instead.
+        // current token instead. This check comes BEFORE the
+        // cancelled check on purpose: a token change always cancels
+        // this effect run, so checking cancelled first would make
+        // this recovery unreachable exactly when it is needed.
         if (xCloudTokenRef.current !== xCloudToken) {
           if (fetchGamesRef.current) {
             fetchGamesRef.current(background);
           }
           return;
         }
+        if (cancelled) {
+          return;
+        }
         if (!background) {
           handleFetchError(e);
         } else {
           log.error('Background catalog refresh failed:', (e && e.message) || e);
+          // The on-screen catalog is not the current token's (e.g.
+          // the token changed and this refresh for it failed): no
+          // effect run will retry on its own, so schedule a bounded
+          // number of retries here instead of leaving the previous
+          // account's catalog up indefinitely.
+          if (
+            lastFetchToken.current !== xCloudToken &&
+            catalogRetryCountRef.current < 3 &&
+            !catalogRetryTimerRef.current
+          ) {
+            catalogRetryCountRef.current += 1;
+            catalogRetryTimerRef.current = setTimeout(() => {
+              catalogRetryTimerRef.current = null;
+              if (fetchGamesRef.current) {
+                fetchGamesRef.current(true);
+              }
+            }, 5000);
+          }
         }
       };
 
@@ -406,22 +429,36 @@ function CloudScreen({navigation, route}) {
                 !cacheApplied.current &&
                 xCloudTokenRef.current === xCloudToken
               ) {
-                setTitles(partialTitles);
+                // Same malformed-entry filter applyCatalog applies:
+                // the genre memo and keyword filter dereference the
+                // raw list, so partial data needs it too.
+                setTitles(
+                  (partialTitles || []).filter(
+                    item => item && typeof item.productId === 'string',
+                  ),
+                );
               }
             })
             .then(async _titles => {
-              if (cancelled) {
-                return;
-              }
               // The token changed while this fetch ran (e.g. a
               // different account signed in): these results belong to
               // the previous token. Never show or cache them — fetch
-              // afresh for the current token instead.
+              // afresh for the current token instead. This check comes
+              // BEFORE the cancelled check on purpose: a token change
+              // always cancels this effect run, so checking cancelled
+              // first would make this recovery unreachable exactly
+              // when it is needed. And every exit from this handler
+              // calls finish() first — returning without it leaves
+              // fetchInFlight latched forever and wedges the tab.
               if (xCloudTokenRef.current !== xCloudToken) {
                 finish();
                 if (fetchGamesRef.current) {
                   fetchGamesRef.current(background);
                 }
+                return;
+              }
+              if (cancelled) {
+                finish();
                 return;
               }
               // An empty catalog is a failure, not a result: applying
@@ -443,18 +480,22 @@ function CloudScreen({navigation, route}) {
               // while everything waits for it.
               applyCatalog(_titles, lastSectionsRef.current);
               const aux = await auxPromise;
-              if (cancelled) {
-                return;
-              }
               // Check the token AGAIN after the wait: the curated
               // lists took seconds to arrive and the token may have
               // changed meanwhile. Never stamp or cache a previous
               // token's catalog as the current one's fresh copy.
+              // (Token check before the cancelled check, and finish()
+              // on every exit — see the note at the top of this
+              // handler.)
               if (xCloudTokenRef.current !== xCloudToken) {
                 finish();
                 if (fetchGamesRef.current) {
                   fetchGamesRef.current(background);
                 }
+                return;
+              }
+              if (cancelled) {
+                finish();
                 return;
               }
               const prev = lastSectionsRef.current;
@@ -467,6 +508,7 @@ function CloudScreen({navigation, route}) {
                 recentIds: aux[5] !== null ? aux[5] : prev.recentIds,
               };
               lastFetchToken.current = xCloudToken;
+              catalogRetryCountRef.current = 0;
               applyCatalog(_titles, sections);
               saveCatalogCache(
                 _titles,
@@ -502,7 +544,16 @@ function CloudScreen({navigation, route}) {
             applyCatalog(cache.titles, cache.sections);
             cacheApplied.current = true;
             cacheSavedAt.current = cache.savedAt;
-            lastFetchToken.current = xCloudToken;
+            // Stamp lastFetchToken ONLY when the owner is known to
+            // match: with the owner unknown on either side the cache
+            // is served for instant display, but the background fetch
+            // below must still run and re-stamp the cache with its
+            // true owner — otherwise a different account's catalog
+            // would be presented as this account's until the TTL
+            // expires.
+            if (cache.owner && owner && cache.owner === owner) {
+              lastFetchToken.current = xCloudToken;
+            }
           }
         }
       }
@@ -527,6 +578,10 @@ function CloudScreen({navigation, route}) {
     return () => {
       cancelled = true;
       subscription?.remove();
+      if (catalogRetryTimerRef.current) {
+        clearTimeout(catalogRetryTimerRef.current);
+        catalogRetryTimerRef.current = null;
+      }
     };
   }, [route.params?.keyword, xCloudToken, navigation, applyCatalog, t]);
 
@@ -638,12 +693,12 @@ function CloudScreen({navigation, route}) {
         }
       }
       currentTitles.current = _sectionData;
-      currentTitleText = customSection ? customSection.title : 'xCloud';
+      currentTitleText = customSection ? customSection.title : t('Xcloud');
       break;
     }
     default:
       currentTitles.current = [];
-      currentTitleText = 'xCloud';
+      currentTitleText = t('Xcloud');
       break;
   }
 
@@ -707,7 +762,10 @@ function CloudScreen({navigation, route}) {
               {'(' + data.length + ')'}
             </Text>
           )}
-          <Text style={styles.showAll} onPress={onShowAll}>
+          <Text
+            style={styles.showAll}
+            onPress={onShowAll}
+            accessibilityRole="button">
             {t('Show all')}
           </Text>
         </View>
@@ -808,6 +866,7 @@ function CloudScreen({navigation, route}) {
                         styles.clearSearch,
                         {color: theme.colors.onSurface},
                       ]}
+                      accessibilityRole="button"
                       onPress={() => {
                         setKeyword('');
                         setCurrentPage(1);
@@ -891,6 +950,7 @@ function CloudScreen({navigation, route}) {
                     styles.clearSearch,
                     {color: theme.colors.onSurface},
                   ]}
+                  accessibilityRole="button"
                   onPress={() => {
                     setKeyword('');
                     setCurrentPage(1);

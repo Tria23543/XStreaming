@@ -199,7 +199,14 @@ function HomeScreen({navigation, route}) {
           // the offline warning already says exactly that, so do not
           // stack a second alert carrying the raw network error.
           if (isConnectedRef.current) {
-            Alert.alert(tRef.current('Error'), (e && e.message) || String(e));
+            // Same focus rule as the other Home alerts: Home stays
+            // mounted under the other tabs, so an alert raised while
+            // another tab is showing would pop over that tab.
+            if (_isFocused.current) {
+              Alert.alert(tRef.current('Error'), (e && e.message) || String(e));
+            } else {
+              log.error('getRedirectUri error:', (e && e.message) || e);
+            }
           }
         });
     };
@@ -287,6 +294,16 @@ function HomeScreen({navigation, route}) {
       });
     }
 
+    // Consume a pending auth-check skip BEFORE the focus gate: the
+    // flag is set by the needRefresh branch below, which runs only
+    // when focused, but the setParams re-run it triggers can land
+    // while unfocused — if the flag survived that run it would eat
+    // the NEXT focused run's genuine check. Reading and clearing it
+    // here means an unfocused re-run consumes it without acting on
+    // it, and the focused branch below uses this local copy.
+    const skipAuthCheck = skipNextAuthCheckRef.current;
+    skipNextAuthCheckRef.current = false;
+
     if (_isFocused.current) {
       log.info('HomeScreen isFocused:', _isFocused.current);
 
@@ -326,12 +343,13 @@ function HomeScreen({navigation, route}) {
             log.error('GetConsoles refresh error:', (e && e.message) || e);
             setLoading(false);
           });
-      } else if (skipNextAuthCheckRef.current) {
+      } else if (skipAuthCheck) {
         // This run exists only because the needRefresh branch above
         // cleared its param: the refresh it just did IS this run's
         // work — a second full sign-in check on top of it would
         // double the token and console requests on every stream exit.
-        skipNextAuthCheckRef.current = false;
+        // (The flag itself was already consumed above the focus
+        // gate.)
       } else {
         setLoading(true);
         setLoadingText(t('Checking login status...'));

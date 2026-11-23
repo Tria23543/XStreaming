@@ -30,10 +30,16 @@ function ArchivementDetail({navigation, route}) {
   // pull-to-refresh alike): a fetch resolving after unmount — or
   // after the screen moved to another title — must not set state.
   const mountedRef = React.useRef(true);
+  // The title the screen currently shows: mountedRef alone cannot
+  // stop a pull-to-refresh started for the PREVIOUS title from
+  // applying its data after the params changed on the same mounted
+  // screen (the new effect run resets mountedRef to true).
+  const currentTitleRef = React.useRef(null);
 
   React.useEffect(() => {
     let cancelled = false;
     mountedRef.current = true;
+    currentTitleRef.current = route.params?.titleId;
     log.info('ArchivementDetail titleId:', route.params?.titleId);
     if (route.params?.titleId) {
       setLoading(true);
@@ -76,10 +82,11 @@ function ArchivementDetail({navigation, route}) {
     try {
       const webApi = new WebApi(webToken);
       if (route.params?.titleId) {
-        const resultes = await webApi.getAchivementDetail(
-          route.params.titleId,
-        );
-        if (mountedRef.current) {
+        const titleId = route.params.titleId;
+        const resultes = await webApi.getAchivementDetail(titleId);
+        // Apply only if the screen still shows the title this
+        // refresh was started for.
+        if (mountedRef.current && currentTitleRef.current === titleId) {
           setArchivements(resultes);
         }
       }

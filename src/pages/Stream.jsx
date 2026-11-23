@@ -182,7 +182,13 @@ function StreamScreen({navigation, route}) {
   const [connectState, setConnectState] = React.useState('');
   const [performance, setPerformance] = React.useState({});
   const [showPerformance, setShowPerformance] = React.useState(false);
-  const [needPoweroff, setNeedPoweroff] = React.useState(false);
+  // A ref, not state: the menu handler sets this and calls
+  // requestExit() in the same press, and the exit fallback timer can
+  // fire the handleExit closure captured from THAT render — with
+  // state, that closure still saw false and the power-off was
+  // silently skipped when the WebView never answered. A ref reads
+  // the current value in every closure.
+  const needPoweroffRef = React.useRef(false);
   const [modalMaxHeight, setModalMaxHeight] = React.useState(250);
   const [message, setMessage] = React.useState('');
   const [messageSending, setMessageSending] = React.useState(false);
@@ -387,9 +393,10 @@ function StreamScreen({navigation, route}) {
   const finishExitTimer = React.useRef(null);
   const timeoutExitFallbackTimer = React.useRef(null);
   const restartTimer = React.useRef(null);
-  // True once an exit has actually navigated away: a streamingClosed
-  // message arriving after that belongs to the finished session and
-  // must not pop its alert over the Home screen or run a second exit.
+  // True once an exit has begun (set at handleExit entry, not when
+  // the navigation timer fires): a streamingClosed message arriving
+  // after that belongs to the finished session and must not pop its
+  // alert over the Home screen or run a second exit.
   const exitedRef = React.useRef(false);
   const tipsShownRef = React.useRef(false);
   const connectedToastRef = React.useRef(false);
@@ -408,13 +415,16 @@ function StreamScreen({navigation, route}) {
   };
 
   const handleSendMessage = async () => {
-    const webApi = new WebApi(webToken);
     setMessageSending(true);
     let text = message.trim();
     if (text.length > 100) {
       text = text.substring(0, 100);
     }
     try {
+      // Constructed inside the try (like handlePowerOff): if the
+      // constructor throws, the catch below reports it instead of
+      // the press handler rejecting unhandled and doing nothing.
+      const webApi = new WebApi(webToken);
       await webApi.sendText(route.params?.sessionId, text);
       setMessage('');
       setToastText(t('Sent'));
@@ -428,13 +438,18 @@ function StreamScreen({navigation, route}) {
     if (isExiting) {
       return;
     }
+    // Mark the exit as begun NOW, not when finishExit's navigation
+    // timer fires after stopStream() settles: a streamingClosed
+    // arriving in that window must already see the flag, or its
+    // alert pops over Home and its Confirm runs a second exit.
+    exitedRef.current = true;
     if (exitFallbackTimer.current) {
       clearTimeout(exitFallbackTimer.current);
       exitFallbackTimer.current = null;
     }
     setIsExiting(true);
     const finishExit = () => {
-      if (needPoweroff) {
+      if (needPoweroffRef.current) {
         handlePowerOff();
       }
       // Tracked so the unmount cleanup can cancel it: untracked, it
@@ -520,8 +535,17 @@ function StreamScreen({navigation, route}) {
       // with an empty body, and a non-string message would render
       // as "[object Object]".
       const otherText =
-        typeof message === 'string' ? message : JSON.stringify(message ?? '');
-      Alert.alert(t('Warning'), otherText);
+        typeof message === 'string'
+          ? message
+          : JSON.stringify(message ?? '') || '';
+      // An absent message stringifies to the two characters `""`:
+      // there is nothing to show, so log it instead of alerting an
+      // empty-looking body.
+      if (otherText && otherText !== '""') {
+        Alert.alert(t('Warning'), otherText);
+      } else {
+        log.info('WebView other message with no content');
+      }
     }
     // The session-flow messages dereference streamApi; if it was never
     // created (missing token/region), fail visibly instead of throwing.
@@ -572,7 +596,7 @@ function StreamScreen({navigation, route}) {
               msg = '[StartSession] Fail:' + t('Streaming is closed.');
             }
           } else {
-            if (e.message?.indexOf('400') > -1) {
+            if (e?.message?.indexOf('400') > -1) {
               const error = t('noAllow');
               msg = '[StartSession] Fail:' + error;
             } else {
@@ -1205,7 +1229,7 @@ function StreamScreen({navigation, route}) {
                         title={t('Disconnect and power off')}
                         background={background}
                         onPress={() => {
-                          setNeedPoweroff(true);
+                          needPoweroffRef.current = true;
                           requestExit();
                         }}
                       />

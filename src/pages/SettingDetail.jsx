@@ -93,6 +93,12 @@ function SettingDetailScreen({navigation, route}) {
           // The user's saved choice wins over the token's current default.
           currentVal = savedVal;
         } else {
+          // The saved choice is unusable (Microsoft renamed or
+          // removed that region) or absent: fall back to the token's
+          // default region, or to nothing selected — never keep the
+          // stale name, which the radio group cannot show and Save
+          // would silently re-apply to the live token.
+          currentVal = '';
           rs.forEach(region => {
             if (region.isDefault) {
               currentVal = region.name;
@@ -142,15 +148,23 @@ function SettingDetailScreen({navigation, route}) {
   // silently skipped. Builds a new settings object instead of
   // mutating state in place.
   const handleSaveSettings = (extra = null) => {
-    // Never overwrite a saved signal-server choice with an empty value
-    // (can happen if the page mounted before the tokens existed and no
-    // region ended up selected).
-    if (
-      (current === 'signaling_home' || current === 'signaling_cloud') &&
-      !value &&
-      settings[current]
-    ) {
-      return false;
+    if (current === 'signaling_home' || current === 'signaling_cloud') {
+      const rs =
+        current === 'signaling_home' ? regions.current : xgpuRegions.current;
+      // Never overwrite a saved signal-server choice with an empty
+      // value (can happen if the page mounted before the tokens
+      // existed and no region ended up selected).
+      if (!value && settings[current]) {
+        return false;
+      }
+      // Nothing is selected because there is nothing TO select (the
+      // page was opened before sign-in, so no regions exist): there
+      // is no save to make, and claiming "Saved" would be false.
+      // This must fire on a fresh install too, where the stored
+      // value is the default '' and the check above cannot.
+      if (!value && (!rs || rs.length === 0)) {
+        return false;
+      }
     }
     const next = {...settings, [current]: value, ...(extra || {})};
     setSettings(next);
@@ -175,13 +189,19 @@ function SettingDetailScreen({navigation, route}) {
       extra = {audio_bitrate_mode: value, audio_bitrate: value2};
     } else if (currentMetas?.name === 'signaling_home') {
       // Persist the choice in settings (handleSaveSettings below) and
-      // apply it to the live token so it takes effect immediately.
-      if (value) {
+      // apply it to the live token so it takes effect immediately —
+      // but only if the region still exists in the token's list: a
+      // stale name (region renamed/removed by Microsoft) must not be
+      // re-applied.
+      if (value && regions.current.some(region => region.name === value)) {
         streamingTokens.xHomeToken &&
           streamingTokens.xHomeToken.setDefaultRegion(value);
       }
     } else if (currentMetas?.name === 'signaling_cloud') {
-      if (value) {
+      if (
+        value &&
+        xgpuRegions.current.some(region => region.name === value)
+      ) {
         streamingTokens.xCloudToken &&
           streamingTokens.xCloudToken.setDefaultRegion(value);
       }
@@ -214,7 +234,13 @@ function SettingDetailScreen({navigation, route}) {
   };
 
   const restart = () => {
-    // Tracked and cleared on unmount, like the save timer above.
+    // Tracked and cleared on unmount, like the save timer above —
+    // and cleared before re-arming, also like the save timer: two
+    // Save taps in quick succession must not leave two live timers
+    // calling restart() twice.
+    if (restartTimer.current) {
+      clearTimeout(restartTimer.current);
+    }
     restartTimer.current = setTimeout(() => {
       RNRestart.restart();
     }, 500);

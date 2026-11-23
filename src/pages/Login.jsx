@@ -82,7 +82,27 @@ function LoginScreen({navigation, route}) {
           onLoadStart={() => setPageLoading(true)}
           onLoadEnd={() => setPageLoading(false)}
           onError={() => setLoadError(true)}
-          onHttpError={() => setLoadError(true)}
+          onHttpError={syntheticEvent => {
+            // Only a failure of the login page ITSELF is fatal: on
+            // Android this callback also fires for subresource
+            // requests, and one 404 asset (script/style/image/font)
+            // must not bounce the user out of a page that loaded
+            // fine. Document failures still land on the error
+            // screen.
+            const errorUrl =
+              (syntheticEvent &&
+                syntheticEvent.nativeEvent &&
+                syntheticEvent.nativeEvent.url) ||
+              '';
+            if (
+              /\.(js|css|png|jpe?g|gif|svg|ico|woff2?|ttf|map)(\?|#|$)/i.test(
+                errorUrl,
+              )
+            ) {
+              return;
+            }
+            setLoadError(true);
+          }}
         onShouldStartLoadWithRequest={request => {
           if (request.url.startsWith('ms-xal-000000004c20a908:')) {
             handleRedirect(request.url);
