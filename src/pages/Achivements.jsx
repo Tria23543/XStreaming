@@ -19,19 +19,27 @@ function AchivementScreen({navigation}) {
   const webToken = useSelector(state => state.webToken);
 
   React.useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     const webApi = new WebApi(webToken);
     webApi
       .getHistoryAchivements()
       .then(data => {
-        setArchivements(data);
+        if (!cancelled) {
+          setArchivements(data);
+        }
       })
       .catch(e => {
         log.error('GetHistoryAchivements error:', e?.message || e);
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
+    return () => {
+      cancelled = true;
+    };
   }, [webToken]);
 
   const formatTime = isoString => {

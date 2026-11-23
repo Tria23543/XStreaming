@@ -29,7 +29,6 @@ function HomeScreen({navigation, route}) {
   const {t} = useTranslation();
   const [loading, setLoading] = React.useState(false);
   const [loadingText, setLoadingText] = React.useState('');
-  const [xalUrl, setXalUrl] = React.useState('');
   const [profile, setProfile] = React.useState(null);
   const [consoles, setConsoles] = React.useState([]);
   const [isConnected, setIsConnected] = React.useState(true);
@@ -51,6 +50,21 @@ function HomeScreen({navigation, route}) {
 
   const webToken = useSelector(state => state.webToken);
   const webTokenRef = React.useRef(null);
+
+  // Latest known connectivity, readable inside async callbacks whose
+  // closures predate the latest NetInfo event.
+  const isConnectedRef = React.useRef(true);
+  // The Authentication instance below is constructed once and keeps
+  // the first effect run's callbacks forever; those callbacks must
+  // translate through the CURRENT language, not the one captured at
+  // construction time.
+  const tRef = React.useRef(t);
+  tRef.current = t;
+  // The login redirect URL already consumed by the auth flow. Route
+  // params are never cleared, so without this any later effect re-run
+  // (e.g. a connectivity flap) would re-enter the interactive flow
+  // with the same, already-consumed auth code.
+  const consumedXalUrlRef = React.useRef(null);
 
   const dispatch = useDispatch();
 
@@ -83,6 +97,7 @@ function HomeScreen({navigation, route}) {
     const subscription = Dimensions.addEventListener('change', updateLayout);
 
     const unsubscribe = NetInfo.addEventListener(state => {
+      isConnectedRef.current = state.isConnected;
       setIsConnected(state.isConnected);
     });
 
@@ -95,17 +110,22 @@ function HomeScreen({navigation, route}) {
     };
 
     if (!isConnected) {
-      Alert.alert(
-        t('Warning'),
-        t('Currently no network connection, please connect and try again'),
-        [
-          {
-            text: t('Confirm'),
-            style: 'default',
-            onPress: () => {},
-          },
-        ],
-      );
+      // Home stays mounted under the other tabs: a global alert raised
+      // from here would pop over whatever screen the user is actually
+      // looking at. Warn only when Home is the visible screen.
+      if (_isFocused.current) {
+        Alert.alert(
+          t('Warning'),
+          t('Currently no network connection, please connect and try again'),
+          [
+            {
+              text: t('Confirm'),
+              style: 'default',
+              onPress: () => {},
+            },
+          ],
+        );
+      }
       return cleanupListeners;
     }
 
@@ -114,22 +134,31 @@ function HomeScreen({navigation, route}) {
         .getRedirectUri()
         .then(redirectObj => {
           setLoading(false);
-          log.info('Redirect:', redirectObj);
+          // Never log the redirect object: it carries the Sisu
+          // SessionId and the OAuth URL (state / code_challenge).
+          log.info('Login redirect received');
           _redirect.current = redirectObj;
           dispatch({
             type: 'SET_REDIRECT',
             payload: redirectObj,
           });
+          // Same focus rule as the offline warning: if the user has
+          // moved to another tab, do not throw a modal over it. The
+          // stored redirect keeps the standalone Login button on this
+          // screen working when they come back.
+          if (!_isFocused.current) {
+            return;
+          }
           Alert.alert(
-            t('Warning'),
-            t('Login has expired or not logged in, please log in again'),
+            tRef.current('Warning'),
+            tRef.current('Login has expired or not logged in, please log in again'),
             [
               {
-                text: t('Later'),
+                text: tRef.current('Later'),
                 style: 'cancel',
               },
               {
-                text: t('Confirm'),
+                text: tRef.current('Confirm'),
                 style: 'default',
                 onPress: () => {
                   const authUrl = redirectObj?.sisuAuth?.MsaOauthRedirect;
@@ -137,8 +166,8 @@ function HomeScreen({navigation, route}) {
                     navigation.navigate('Login', {authUrl});
                   } else {
                     Alert.alert(
-                      t('Error'),
-                      t(
+                      tRef.current('Error'),
+                      tRef.current(
                         'Currently no network connection, please connect and try again',
                       ),
                     );
@@ -150,7 +179,12 @@ function HomeScreen({navigation, route}) {
         })
         .catch(e => {
           setLoading(false);
-          Alert.alert(t('Error'), (e && e.message) || String(e));
+          // Offline, getRedirectUri fails because there is no network:
+          // the offline warning already says exactly that, so do not
+          // stack a second alert carrying the raw network error.
+          if (isConnectedRef.current) {
+            Alert.alert(tRef.current('Error'), (e && e.message) || String(e));
+          }
         });
     };
 
@@ -204,7 +238,7 @@ function HomeScreen({navigation, route}) {
         setLoading(true);
         const webApi = new WebApi(_webToken);
 
-        setLoadingText(t('Fetching user info...'));
+        setLoadingText(tRef.current('Fetching user info...'));
         try {
           const _profile = await webApi.getUserProfile();
           setProfile(_profile);
@@ -212,11 +246,11 @@ function HomeScreen({navigation, route}) {
             type: 'SET_PROFILE',
             payload: _profile,
           });
-          setLoadingText(t('Fetching consoles...'));
+          setLoadingText(tRef.current('Fetching consoles...'));
           const _consoles = await webApi.getConsoles();
           setConsoles(_consoles);
         } catch (e) {
-          Alert.alert(t('Error'), (e && e.message) || String(e));
+          Alert.alert(tRef.current('Error'), (e && e.message) || String(e));
         }
         setLoading(false);
       };
@@ -235,11 +269,14 @@ function HomeScreen({navigation, route}) {
       log.info('HomeScreen isFocused:', _isFocused.current);
 
       // Return from Login screen
-      if (route.params?.xalUrl) {
+      if (
+        route.params?.xalUrl &&
+        consumedXalUrlRef.current !== route.params.xalUrl
+      ) {
+        consumedXalUrlRef.current = route.params.xalUrl;
         if (!_isLogined.current) {
           // Never log the redirect URL itself: it carries the auth code.
           log.info('HomeScreen received a login redirect');
-          setXalUrl(route.params.xalUrl);
           setLoading(true);
           setLoadingText(
             t('Login successful, refreshing login credentials...'),
@@ -250,6 +287,9 @@ function HomeScreen({navigation, route}) {
           );
         }
       } else if (route.params?.needRefresh && webTokenRef.current) {
+        // Consume the flag: left in the route params it would re-fetch
+        // the consoles on every later effect re-run.
+        navigation.setParams({needRefresh: undefined});
         setLoading(true);
         setLoadingText(t('Fetching consoles...'));
         const webApi = new WebApi(webTokenRef.current);

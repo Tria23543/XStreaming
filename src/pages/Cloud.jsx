@@ -11,7 +11,7 @@ import {
   RefreshControl,
   Pressable,
 } from 'react-native';
-import {Text, Appbar, FAB, Button} from 'react-native-paper';
+import {Text, Appbar, FAB, Button, useTheme} from 'react-native-paper';
 import NetInfo from '@react-native-community/netinfo';
 import {useSelector} from 'react-redux';
 import TitleItem, {getTitleBadge} from '../components/TitleItem';
@@ -36,6 +36,7 @@ const SIGL_TOUCH = '9c86f07a-f3e8-45ad-82a0-a1f759597059';
 
 function CloudScreen({navigation, route}) {
   const {t} = useTranslation();
+  const theme = useTheme();
   const streamingTokens = useSelector(state => state.streamingTokens);
   const authentication = useSelector(state => state.authentication);
 
@@ -58,17 +59,27 @@ function CloudScreen({navigation, route}) {
   const [hydrated, setHydrated] = React.useState(false);
   const [titles, setTitles] = React.useState([]);
   const [newTitles, setNewTitles] = React.useState([]);
-  const [titlesMap, setTitlesMap] = React.useState({});
   const [RecentTitles, setRecentNewTitles] = React.useState([]);
   const [orgTitles, setOrgTitles] = React.useState([]);
   const [keyword, setKeyword] = React.useState('');
   const flatListRef = React.useRef(null);
-  const isFetchGame = React.useRef(false);
   const fetchInFlight = React.useRef(false);
   const cacheApplied = React.useRef(false);
   const cacheSavedAt = React.useRef(0);
   const lastFetchToken = React.useRef(null);
   const fetchGamesRef = React.useRef(null);
+  // Mirror of the current streaming token, readable inside async
+  // fetch completions: a fetch that finishes after the token changed
+  // (e.g. a different account signed in) must not apply or cache its
+  // results — they belong to the previous token.
+  const xCloudTokenRef = React.useRef(null);
+  // The section ID lists behind the catalog currently on screen, kept
+  // so a refresh whose curated requests partly fail can fall back to
+  // the previous lists instead of wiping every section.
+  const lastSectionsRef = React.useRef(emptySections());
+  // The last route-param keyword already applied, so effect re-runs
+  // (token changes etc.) cannot resurrect a search the user cleared.
+  const appliedParamKeywordRef = React.useRef(null);
   const [fabOpen, setFabOpen] = React.useState(false);
   const [view, setView] = React.useState('home');
   const [popularTitles, setPopularTitles] = React.useState([]);
@@ -79,6 +90,7 @@ function CloudScreen({navigation, route}) {
 
   const currentTitles = React.useRef([]);
   const xCloudToken = streamingTokens.xCloudToken;
+  xCloudTokenRef.current = xCloudToken;
   // Derived, not state: limited means the grace period passed and
   // there is STILL no streaming token.
   const isLimited = !xCloudToken && tokenWaitExpired;
@@ -104,31 +116,44 @@ function CloudScreen({navigation, route}) {
   // is what recovers the tab when the app was opened offline: nothing
   // else re-runs the sign-in when connectivity returns, so without it
   // the only cure was restarting the app.
-  const retryAuth = React.useCallback(() => {
-    setWaitCycle(c => c + 1);
+  const doAuthCheck = React.useCallback(() => {
     if (authentication && authentication.checkAuthentication) {
       authentication.checkAuthentication().catch(() => {});
     }
   }, [authentication]);
 
+  const retryAuth = React.useCallback(() => {
+    setWaitCycle(c => c + 1);
+    doAuthCheck();
+  }, [doAuthCheck]);
+
   // Recover automatically the moment connectivity returns while the
-  // tab is still tokenless.
+  // tab is still tokenless. This deliberately does NOT restart the
+  // grace wait (no waitCycle bump): repeated connectivity events
+  // (Wi-Fi/VPN/interface changes) would otherwise keep pushing the
+  // wait back and the Retry button might never appear.
   React.useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       if (state.isConnected && !xCloudToken) {
-        retryAuth();
+        doAuthCheck();
       }
     });
     return () => unsubscribe();
-  }, [xCloudToken, retryAuth]);
+  }, [xCloudToken, doAuthCheck]);
 
   // Put a complete catalog (cached or freshly fetched) on screen: build
   // the product map, the owned-games list and every curated section from
   // the stored section ID lists.
   const applyCatalog = React.useCallback((allTitles, sections) => {
+    lastSectionsRef.current = sections;
     const _titleMap = {};
     const _orgTitles = [];
     allTitles.forEach(item => {
+      // Skip anything that is not a title-shaped object: one malformed
+      // entry must not crash the whole screen.
+      if (!item || typeof item.productId !== 'string') {
+        return;
+      }
       _titleMap[item.productId] = item;
       if (
         !item.XCloudTitleId &&
@@ -146,7 +171,10 @@ function CloudScreen({navigation, route}) {
     const recentByIds = ids => {
       const mapped = [];
       (ids || []).forEach(id => {
-        const hit = _titleMap[id] || _titleMap[String(id).toUpperCase()];
+        const hit =
+          _titleMap[id] ||
+          _titleMap[String(id).toUpperCase()] ||
+          _titleMap[String(id).toLowerCase()];
         if (hit) {
           mapped.push(hit);
         }
@@ -154,7 +182,6 @@ function CloudScreen({navigation, route}) {
       return mapped;
     };
     setTitles(allTitles);
-    setTitlesMap(_titleMap);
     setOrgTitles(_orgTitles);
     setPopularTitles(byIds(sections.popular));
     setLeavingTitles(byIds(sections.leaving));
@@ -187,7 +214,9 @@ function CloudScreen({navigation, route}) {
         });
       };
       pushUrls(recentByIds(sections.recentIds));
-      pushUrls(allTitles.filter(item => getTitleBadge(item) !== null));
+      // The "Included in your subscription" row is GP-only, so warm
+      // exactly its first tiles — not a mix of every badged title.
+      pushUrls(allTitles.filter(item => getTitleBadge(item) === 'GP'));
       pushUrls(byIds(sections.popular));
       pushUrls(byIds(sections.newIds));
       pushUrls(byIds(sections.leaving));
@@ -203,7 +232,14 @@ function CloudScreen({navigation, route}) {
   }, []);
 
   React.useEffect(() => {
-    if (route.params?.keyword) {
+    // Apply a route-param keyword once per distinct value: this effect
+    // re-runs on token changes too, and re-applying it would resurrect
+    // a search the user has already cleared.
+    if (
+      route.params?.keyword &&
+      appliedParamKeywordRef.current !== route.params.keyword
+    ) {
+      appliedParamKeywordRef.current = route.params.keyword;
       setKeyword(route.params.keyword);
       setView('grid');
     }
@@ -241,7 +277,10 @@ function CloudScreen({navigation, route}) {
         return;
       }
       fetchInFlight.current = true;
-      lastFetchToken.current = xCloudToken;
+      // lastFetchToken is deliberately NOT stamped here: it records
+      // the last token whose catalog was successfully applied, so a
+      // failed refresh leaves the token-change condition true and a
+      // later effect run retries instead of waiting out the TTL.
       if (!background) {
         setLoading(true);
       }
@@ -284,49 +323,82 @@ function CloudScreen({navigation, route}) {
           // "Jump back in" used to arrive last of all.
           const idList = list =>
             (list || []).map(item => item && item.id).filter(id => !!id);
+          // Each curated request fails INDEPENDENTLY (null slot): one
+          // dead gallery must not wipe the other five sections.
+          const auxOrNull = p =>
+            p.catch(e => {
+              log.error('Curated list failed:', (e && e.message) || e);
+              return null;
+            });
           const auxPromise = Promise.all([
-            _xCloudApi.getSiglTitles(SIGL_POPULAR).then(idList),
-            _xCloudApi.getSiglTitles(SIGL_LEAVING).then(idList),
-            _xCloudApi.getSiglTitles(SIGL_MKB).then(idList),
-            _xCloudApi.getSiglTitles(SIGL_TOUCH).then(idList),
-            _xCloudApi.getNewTitles().then(idList),
-            _xCloudApi.getRecentTitles().then(recentRes => {
-              const results = (recentRes && recentRes.results) || [];
-              return results
-                .map(item => item.details && item.details.productId)
-                .filter(id => !!id);
-            }),
-          ]).catch(e => {
-            log.error('Curated lists failed:', (e && e.message) || e);
-            return null;
-          });
+            auxOrNull(_xCloudApi.getSiglTitles(SIGL_POPULAR).then(idList)),
+            auxOrNull(_xCloudApi.getSiglTitles(SIGL_LEAVING).then(idList)),
+            auxOrNull(_xCloudApi.getSiglTitles(SIGL_MKB).then(idList)),
+            auxOrNull(_xCloudApi.getSiglTitles(SIGL_TOUCH).then(idList)),
+            auxOrNull(_xCloudApi.getNewTitles().then(idList)),
+            auxOrNull(
+              _xCloudApi.getRecentTitles().then(recentRes => {
+                const results = (recentRes && recentRes.results) || [];
+                return results
+                  .map(item => item.details && item.details.productId)
+                  .filter(id => !!id);
+              }),
+            ),
+          ]);
 
           _xCloudApi
             .getGamePassProducts(res.results, partialTitles => {
               // Progressive fill only matters on a true cold load; when a
               // cached catalog is already on screen it stays untouched
-              // until the fresh one is complete.
-              if (!cacheApplied.current) {
+              // until the fresh one is complete. And if the token
+              // changed mid-fetch, the partial data is not ours to show.
+              if (
+                !cacheApplied.current &&
+                xCloudTokenRef.current === xCloudToken
+              ) {
                 setTitles(partialTitles);
               }
             })
             .then(async _titles => {
+              // The token changed while this fetch ran (e.g. a
+              // different account signed in): these results belong to
+              // the previous token. Never show or cache them — fetch
+              // afresh for the current token instead.
+              if (xCloudTokenRef.current !== xCloudToken) {
+                finish();
+                if (fetchGamesRef.current) {
+                  fetchGamesRef.current(true);
+                }
+                return;
+              }
+              // An empty catalog is a failure, not a result: applying
+              // it would blank a working screen and overwrite the
+              // saved catalog with nothing.
+              if (!_titles || _titles.length === 0) {
+                fail(
+                  new Error(
+                    t(
+                      'Failed to load games. Please check your connection and try again.',
+                    ),
+                  ),
+                );
+                return;
+              }
               const aux = await auxPromise;
-              const sections = aux
-                ? {
-                    popular: aux[0],
-                    leaving: aux[1],
-                    mkb: aux[2],
-                    touch: aux[3],
-                    newIds: aux[4],
-                    recentIds: aux[5],
-                  }
-                : emptySections();
+              const prev = lastSectionsRef.current;
+              const sections = {
+                popular: aux[0] !== null ? aux[0] : prev.popular,
+                leaving: aux[1] !== null ? aux[1] : prev.leaving,
+                mkb: aux[2] !== null ? aux[2] : prev.mkb,
+                touch: aux[3] !== null ? aux[3] : prev.touch,
+                newIds: aux[4] !== null ? aux[4] : prev.newIds,
+                recentIds: aux[5] !== null ? aux[5] : prev.recentIds,
+              };
+              lastFetchToken.current = xCloudToken;
               applyCatalog(_titles, sections);
               saveCatalogCache(_titles, sections);
               cacheSavedAt.current = Date.now();
               cacheApplied.current = true;
-              isFetchGame.current = true;
               finish();
             })
             .catch(fail);
@@ -346,7 +418,6 @@ function CloudScreen({navigation, route}) {
           applyCatalog(cache.titles, cache.sections);
           cacheApplied.current = true;
           cacheSavedAt.current = cache.savedAt;
-          isFetchGame.current = true;
           lastFetchToken.current = xCloudToken;
         }
       }
@@ -393,6 +464,32 @@ function CloudScreen({navigation, route}) {
     flatListRef.current?.scrollToOffset({animated: true, offset: 0});
   };
 
+  // Group the loaded library by its real catalog genres, and pick out
+  // the games included with the user's subscription. Memoised: these
+  // walk the whole catalog, so they must not re-run on unrelated renders.
+  const {genreMap, genreSections, includedTitles} = React.useMemo(() => {
+    const _genreMap = {};
+    titles.forEach(item => {
+      (item.Categories || []).forEach(cat => {
+        if (!_genreMap[cat]) {
+          _genreMap[cat] = [];
+        }
+        _genreMap[cat].push(item);
+      });
+    });
+    const _genreSections = Object.keys(_genreMap)
+      .filter(cat => cat !== 'Other' && _genreMap[cat].length >= 8)
+      .sort((a, b) => _genreMap[b].length - _genreMap[a].length);
+    const _includedTitles = titles.filter(
+      item => getTitleBadge(item) === 'GP',
+    );
+    return {
+      genreMap: _genreMap,
+      genreSections: _genreSections,
+      includedTitles: _includedTitles,
+    };
+  }, [titles]);
+
   /**
    * 0 - recent
    * 1 - new
@@ -418,10 +515,41 @@ function CloudScreen({navigation, route}) {
       currentTitles.current = titles;
       currentTitleText = t('All');
       break;
-    case 99:
-      currentTitles.current = customSection ? customSection.data : [];
+    case 99: {
+      // A section opened from the home rows resolves its data LIVE
+      // from the current state lists, never from a snapshot taken when
+      // it was tapped: during a cold load the lists are still filling,
+      // and a snapshot would freeze the section at its partial contents.
+      let _sectionData = [];
+      if (customSection) {
+        switch (customSection.source) {
+          case 'included':
+            _sectionData = includedTitles;
+            break;
+          case 'popular':
+            _sectionData = popularTitles;
+            break;
+          case 'leaving':
+            _sectionData = leavingTitles;
+            break;
+          case 'mkb':
+            _sectionData = mkbTitles;
+            break;
+          case 'touch':
+            _sectionData = touchTitles;
+            break;
+          default:
+            _sectionData =
+              customSection.source &&
+              customSection.source.indexOf('genre:') === 0
+                ? genreMap[customSection.source.slice(6)] || []
+                : [];
+        }
+      }
+      currentTitles.current = _sectionData;
       currentTitleText = customSection ? customSection.title : 'xCloud';
       break;
+    }
     default:
       currentTitles.current = [];
       currentTitleText = 'xCloud';
@@ -457,8 +585,8 @@ function CloudScreen({navigation, route}) {
     scrollToTop();
   };
 
-  const handleShowSection = (sectionTitle, data) => {
-    setCustomSection({title: sectionTitle, data});
+  const handleShowSection = (sectionTitle, source) => {
+    setCustomSection({title: sectionTitle, source});
     setCurrent(99);
     setView('grid');
     setCurrentPage(1);
@@ -468,32 +596,6 @@ function CloudScreen({navigation, route}) {
   // Show 20 titles per page
   const endIdx = currentPage * 20;
   let showTitles = currentTitles.current.slice(0, endIdx);
-
-  // Group the loaded library by its real catalog genres, and pick out
-  // the games included with the user's subscription. Memoised: these
-  // walk the whole catalog, so they must not re-run on unrelated renders.
-  const {genreMap, genreSections, includedTitles} = React.useMemo(() => {
-    const _genreMap = {};
-    titles.forEach(item => {
-      (item.Categories || []).forEach(cat => {
-        if (!_genreMap[cat]) {
-          _genreMap[cat] = [];
-        }
-        _genreMap[cat].push(item);
-      });
-    });
-    const _genreSections = Object.keys(_genreMap)
-      .filter(cat => cat !== 'Other' && _genreMap[cat].length >= 8)
-      .sort((a, b) => _genreMap[b].length - _genreMap[a].length);
-    const _includedTitles = titles.filter(
-      item => getTitleBadge(item) === 'GP',
-    );
-    return {
-      genreMap: _genreMap,
-      genreSections: _genreSections,
-      includedTitles: _includedTitles,
-    };
-  }, [titles]);
 
   const renderSection = (sectionTitle, data, onShowAll) => {
     if (!data || data.length === 0) {
@@ -558,7 +660,10 @@ function CloudScreen({navigation, route}) {
         </View>
       )}
 
-      {!isLimited && (
+      {/* The main UI renders only once a token exists: during the
+          grace wait the spinner below owns the whole screen, instead
+          of the two stacking as half-screens. */}
+      {!!xCloudToken && (
         <>
           <View style={styles.gameContainer}>
             <Appbar.Header>
@@ -589,24 +694,33 @@ function CloudScreen({navigation, route}) {
               <ScrollView refreshControl={refreshControl}>
                 <View style={styles.searchBar}>
                   <TextInput
-                    style={styles.searchInput}
+                    style={[
+                      styles.searchInput,
+                      {color: theme.colors.onSurface},
+                    ]}
                     placeholder={t('Search')}
-                    placeholderTextColor="rgba(255,255,255,0.5)"
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
                     value={keyword}
                     onChangeText={text => {
                       setKeyword(text);
+                      setCurrentPage(1);
                       if (text.length > 0) {
                         setCurrent(3);
                         setCustomSection(null);
-                        setCurrentPage(1);
                         setView('grid');
                       }
                     }}
                   />
                   {keyword.length > 0 && (
                     <Text
-                      style={styles.clearSearch}
-                      onPress={() => setKeyword('')}>
+                      style={[
+                        styles.clearSearch,
+                        {color: theme.colors.onSurface},
+                      ]}
+                      onPress={() => {
+                        setKeyword('');
+                        setCurrentPage(1);
+                      }}>
                       ✕
                     </Text>
                   )}
@@ -620,31 +734,31 @@ function CloudScreen({navigation, route}) {
                   () =>
                     handleShowSection(
                       t('Included in your subscription'),
-                      includedTitles,
+                      'included',
                     ),
                 )}
                 {renderSection(t('Most popular'), popularTitles, () =>
-                  handleShowSection(t('Most popular'), popularTitles),
+                  handleShowSection(t('Most popular'), 'popular'),
                 )}
                 {renderSection(t('Recently added'), newTitles, () =>
                   handleSelectCategories(1),
                 )}
                 {renderSection(t('Leaving soon'), leavingTitles, () =>
-                  handleShowSection(t('Leaving soon'), leavingTitles),
+                  handleShowSection(t('Leaving soon'), 'leaving'),
                 )}
                 {renderSection(t('Stream your own game'), orgTitles, () =>
                   handleSelectCategories(2),
                 )}
                 {renderSection(t('Mouse and keyboard'), mkbTitles, () =>
-                  handleShowSection(t('Mouse and keyboard'), mkbTitles),
+                  handleShowSection(t('Mouse and keyboard'), 'mkb'),
                 )}
                 {renderSection(t('Touch controls'), touchTitles, () =>
-                  handleShowSection(t('Touch controls'), touchTitles),
+                  handleShowSection(t('Touch controls'), 'touch'),
                 )}
                 {genreSections.map(cat => (
                   <React.Fragment key={cat}>
                     {renderSection(cat, genreMap[cat], () =>
-                      handleShowSection(cat, genreMap[cat]),
+                      handleShowSection(cat, 'genre:' + cat),
                     )}
                   </React.Fragment>
                 ))}
@@ -661,26 +775,35 @@ function CloudScreen({navigation, route}) {
               <>
             <View style={styles.searchBar}>
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, {color: theme.colors.onSurface}]}
                 placeholder={t('Search')}
-                placeholderTextColor="rgba(255,255,255,0.5)"
+                placeholderTextColor={theme.colors.onSurfaceVariant}
                 value={keyword}
                 autoFocus={keyword.length > 0}
                 onChangeText={text => {
                   setKeyword(text);
+                  // Any change to the search restarts paging at page 1:
+                  // the accumulated page count belongs to the old
+                  // keyword's result set.
+                  setCurrentPage(1);
                   if (text.length > 0 && current !== 3) {
                     // Searching always covers the whole library, like
                     // the website — not just the open section.
                     setCurrent(3);
                     setCustomSection(null);
-                    setCurrentPage(1);
                   }
                 }}
               />
               {keyword.length > 0 && (
                 <Text
-                  style={styles.clearSearch}
-                  onPress={() => setKeyword('')}>
+                  style={[
+                    styles.clearSearch,
+                    {color: theme.colors.onSurface},
+                  ]}
+                  onPress={() => {
+                    setKeyword('');
+                    setCurrentPage(1);
+                  }}>
                   ✕
                 </Text>
               )}
@@ -700,7 +823,7 @@ function CloudScreen({navigation, route}) {
                   numColumns={numColumns}
                   key={numColumns}
                   keyExtractor={(item, index) =>
-                    item.productId || String(index)
+                    (item.productId || 'title') + '-' + index
                   }
                   initialNumToRender={10}
                   maxToRenderPerBatch={10}
@@ -815,10 +938,6 @@ const styles = StyleSheet.create({
   gameContainer: {
     flex: 1,
   },
-  categoryWrap: {
-    width: 200,
-    padding: 10,
-  },
   listContainer: {},
   listItemH: {
     width: '50%',
@@ -840,12 +959,10 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#ffffff',
     fontSize: 16,
     paddingVertical: 2,
   },
   clearSearch: {
-    color: '#ffffff',
     fontSize: 16,
     paddingLeft: 10,
     paddingRight: 2,

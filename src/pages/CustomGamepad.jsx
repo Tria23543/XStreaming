@@ -95,36 +95,30 @@ function CustomGamepadScreen({navigation, route}) {
     };
   }, [navigation, route.params?.name]);
 
-  // Button drag
+  // Button drag. Updates are immutable (map + clone the changed
+  // button): mutating in place also mutated the factory-defaults copy
+  // (it holds the same objects), which silently broke Reset.
   const handleDrag = (name, x, y) => {
-    buttons.forEach(b => {
-      if (b.name === name) {
-        b.x = Math.round(x);
-        b.y = Math.round(y);
-      }
-    });
-    setButtons([...buttons]);
+    setButtons(prev =>
+      prev.map(b =>
+        b.name === name ? {...b, x: Math.round(x), y: Math.round(y)} : b,
+      ),
+    );
   };
 
   // Button size change
   const handleChangeSize = scale => {
-    buttons.forEach(b => {
-      if (b.name === currentButton) {
-        b.scale = scale;
-      }
-    });
-    setButtons([...buttons]);
+    setButtons(prev =>
+      prev.map(b => (b.name === currentButton ? {...b, scale} : b)),
+    );
   };
 
   // Button show change
   const handleChangeShow = value => {
     setCurrentShow(value);
-    buttons.forEach(b => {
-      if (b.name === currentButton) {
-        b.show = value;
-      }
-    });
-    setButtons([...buttons]);
+    setButtons(prev =>
+      prev.map(b => (b.name === currentButton ? {...b, show: value} : b)),
+    );
   };
 
   const background = {
@@ -140,7 +134,9 @@ function CustomGamepadScreen({navigation, route}) {
   };
 
   const handleReset = () => {
-    setButtons([...defaultButtons]);
+    // Clone the default objects, not just the array: the working list
+    // must never share objects with the defaults copy.
+    setButtons(defaultButtons.map(b => ({...b})));
   };
 
   const handleDelete = () => {

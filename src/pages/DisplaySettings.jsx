@@ -25,8 +25,15 @@ function DisplaySettings({navigation, route}) {
   };
 
   const handleSave = () => {
-    settings.display_options = options;
-    saveSettings(settings);
+    // With untouched sliders, `options` is still the initial {} while
+    // the Display component shows its defaults: persist what the user
+    // actually sees, not the empty object. Immutable update, like the
+    // other settings pages.
+    const effectiveOptions =
+      Object.keys(options).length > 0
+        ? options
+        : {sharpness: 5, saturation: 100, contrast: 100, brightness: 100};
+    saveSettings({...settings, display_options: effectiveOptions});
     navigation.goBack();
   };
 

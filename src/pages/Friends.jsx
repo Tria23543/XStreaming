@@ -21,25 +21,34 @@ function FriendsScreen({navigation}) {
   const webToken = useSelector(state => state.webToken);
 
   React.useEffect(() => {
+    // Guard the async completions: a fetch that resolves after
+    // unmount must not set state on a dead screen.
+    let cancelled = false;
     setLoading(true);
     const webApi = new WebApi(webToken);
     webApi
       .getFriends()
       .then(data => {
-        setFriends(data);
+        if (!cancelled) {
+          setFriends(data);
+        }
       })
       .catch(e => {
         log.error('GetFriends error:', e?.message || e);
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
 
     timer.current = setInterval(() => {
       webApi
         .getFriends()
         .then(data => {
-          setFriends(data);
+          if (!cancelled) {
+            setFriends(data);
+          }
         })
         .catch(e => {
           log.error('GetFriends polling error:', e?.message || e);
@@ -47,6 +56,7 @@ function FriendsScreen({navigation}) {
     }, 30 * 1000);
 
     return () => {
+      cancelled = true;
       if (timer.current) {
         clearInterval(timer.current);
         timer.current = null;

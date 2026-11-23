@@ -5,6 +5,7 @@ import {
   ScrollView,
   Platform,
   ToastAndroid,
+  Alert,
 } from 'react-native';
 import {Button, RadioButton, Text, Divider, Snackbar} from 'react-native-paper';
 import {useTranslation} from 'react-i18next';
@@ -30,10 +31,14 @@ function SettingDetailScreen({navigation, route}) {
   const [settings, setSettings] = React.useState({});
   const [savedVisible, setSavedVisible] = React.useState(false);
   const saveTimer = React.useRef(null);
+  const restartTimer = React.useRef(null);
   React.useEffect(() => {
     return () => {
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
+      }
+      if (restartTimer.current) {
+        clearTimeout(restartTimer.current);
       }
     };
   }, []);
@@ -106,7 +111,11 @@ function SettingDetailScreen({navigation, route}) {
     }
   }, [navigation, route.params?.id]);
 
-  const handleSaveSettings = () => {
+  // Returns true only when something was actually persisted, so the
+  // caller can avoid claiming "Saved" for a save the guard below
+  // silently skipped. Builds a new settings object instead of
+  // mutating state in place.
+  const handleSaveSettings = (extra = null) => {
     // Never overwrite a saved signal-server choice with an empty value
     // (can happen if the page mounted before the tokens existed and no
     // region ended up selected).
@@ -115,13 +124,12 @@ function SettingDetailScreen({navigation, route}) {
       !value &&
       settings[current]
     ) {
-      return;
+      return false;
     }
-    if (settings[current] !== undefined) {
-      settings[current] = value;
-      setSettings(settings);
-      saveSettings(settings);
-    }
+    const next = {...settings, [current]: value, ...(extra || {})};
+    setSettings(next);
+    saveSettings(next);
+    return true;
   };
 
   const handleSave = () => {
@@ -132,15 +140,13 @@ function SettingDetailScreen({navigation, route}) {
       restart();
       return;
     }
+    let extra = null;
     if (current === 'xhome_bitrate_mode') {
-      settings.xhome_bitrate_mode = value;
-      settings.xhome_bitrate = value2;
+      extra = {xhome_bitrate_mode: value, xhome_bitrate: value2};
     } else if (current === 'xcloud_bitrate_mode') {
-      settings.xcloud_bitrate_mode = value;
-      settings.xcloud_bitrate = value2;
+      extra = {xcloud_bitrate_mode: value, xcloud_bitrate: value2};
     } else if (current === 'audio_bitrate_mode') {
-      settings.audio_bitrate_mode = value;
-      settings.audio_bitrate = value2;
+      extra = {audio_bitrate_mode: value, audio_bitrate: value2};
     } else if (currentMetas?.name === 'signaling_home') {
       // Persist the choice in settings (handleSaveSettings below) and
       // apply it to the live token so it takes effect immediately.
@@ -154,7 +160,16 @@ function SettingDetailScreen({navigation, route}) {
           streamingTokens.xCloudToken.setDefaultRegion(value);
       }
     }
-    handleSaveSettings();
+    const saved = handleSaveSettings(extra);
+    if (!saved) {
+      // The empty signal-server guard skipped the save: say so and
+      // stay on the page instead of showing "Saved" and leaving.
+      Alert.alert(
+        t('Error'),
+        t('No servers available yet. Please log in first, then reopen this page.'),
+      );
+      return;
+    }
     if (Platform.OS === 'android') {
       ToastAndroid.show(t('Saved'), ToastAndroid.SHORT);
       navigation.goBack();
@@ -173,7 +188,8 @@ function SettingDetailScreen({navigation, route}) {
   };
 
   const restart = () => {
-    setTimeout(() => {
+    // Tracked and cleared on unmount, like the save timer above.
+    restartTimer.current = setTimeout(() => {
       RNRestart.restart();
     }, 500);
   };

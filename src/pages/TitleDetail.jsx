@@ -12,11 +12,17 @@ const log = debugFactory('TitleDetailScreen');
 function TitleDetail({navigation, route}) {
   const {t} = useTranslation();
   const [titleItem, setTitleItem] = React.useState(null);
+  const [loadFailed, setLoadFailed] = React.useState(false);
 
   React.useEffect(() => {
     log.info('TitleDetail titleItem:', route.params?.titleItem);
     if (route.params?.titleItem) {
       setTitleItem(route.params.titleItem);
+      setLoadFailed(false);
+    } else {
+      // Reached without a title (should not happen from the library):
+      // show an error with a way back instead of spinning forever.
+      setLoadFailed(true);
     }
     navigation.setOptions({
       // The ?. must cover titleItem too: params present without a
@@ -55,10 +61,21 @@ function TitleDetail({navigation, route}) {
   return (
     <View style={styles.container}>
       <Spinner
-        visible={!titleItem}
+        visible={!titleItem && !loadFailed}
         textContent={t('Loading...')}
         textStyle={styles.spinnerTextStyle}
       />
+
+      {!titleItem && loadFailed && (
+        <View style={styles.errorWrap}>
+          <Text variant="titleMedium" style={styles.errorText}>
+            {t('NoData')}
+          </Text>
+          <Button mode="contained" onPress={() => navigation.goBack()}>
+            {t('Back')}
+          </Button>
+        </View>
+      )}
 
       {titleItem && (
         <>
@@ -104,7 +121,7 @@ function TitleDetail({navigation, route}) {
 
             <View style={styles.tagsWrap}>
               {isByorg && (
-                <HelperText type="error" visible={true}>
+                <HelperText type="info" visible={true}>
                   {t('byorg')}
                 </HelperText>
               )}
@@ -145,6 +162,16 @@ function TitleDetail({navigation, route}) {
 }
 
 const styles = StyleSheet.create({
+  errorWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginBottom: 20,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
   },

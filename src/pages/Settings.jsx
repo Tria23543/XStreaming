@@ -246,9 +246,6 @@ const styles = StyleSheet.create({
   spinnerTextStyle: {
     color: '#FFF',
   },
-  backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   contentTitle: {
     padding: 15,
     paddingBottom: 0,

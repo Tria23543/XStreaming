@@ -136,6 +136,22 @@ function StreamScreen({navigation, route}) {
   const streamingTokens = useSelector(state => state.streamingTokens);
   const webToken = useSelector(state => state.webToken);
 
+  // The tokens this stream is started with, captured once. Home stays
+  // mounted under this screen and dispatches FRESH token objects on
+  // every successful re-check (any connectivity flap triggers one);
+  // the session objects below must be built from the tokens the
+  // session was created with, never swapped mid-stream.
+  const streamTokensRef = React.useRef(null);
+  if (
+    !streamTokensRef.current &&
+    (streamingTokens.xCloudToken || streamingTokens.xHomeToken)
+  ) {
+    streamTokensRef.current = streamingTokens;
+  }
+  const hasStreamingTokens = !!(
+    streamingTokens.xCloudToken || streamingTokens.xHomeToken
+  );
+
   const [xHomeApi, setXHomeApi] = React.useState(null);
   const [xCloudApi, setXCloudApi] = React.useState(null);
   const [settings, setSettings] = React.useState({});
@@ -235,27 +251,32 @@ function StreamScreen({navigation, route}) {
     if (route.params?.streamType) {
       log.info('Stream screen receive streamType:', route.params?.streamType);
     }
-    if (streamingTokens.xHomeToken) {
-      const region = streamingTokens.xHomeToken.getDefaultRegion();
+    const tokens = streamTokensRef.current || {};
+    let builtHomeApi = null;
+    let builtCloudApi = null;
+    if (tokens.xHomeToken) {
+      const region = tokens.xHomeToken.getDefaultRegion();
       if (region) {
         const _xHomeApi = new XcloudApi(
           region.baseUri,
-          streamingTokens.xHomeToken.data.gsToken,
+          tokens.xHomeToken.data.gsToken,
           'home',
           authentication,
         );
+        builtHomeApi = _xHomeApi;
         setXHomeApi(_xHomeApi);
       }
     }
-    if (streamingTokens.xCloudToken) {
-      const region = streamingTokens.xCloudToken.getDefaultRegion();
+    if (tokens.xCloudToken) {
+      const region = tokens.xCloudToken.getDefaultRegion();
       if (region) {
         const _xCloudApi = new XcloudApi(
           region.baseUri,
-          streamingTokens.xCloudToken.data.gsToken,
+          tokens.xCloudToken.data.gsToken,
           'cloud',
           authentication,
         );
+        builtCloudApi = _xCloudApi;
         setXCloudApi(_xCloudApi);
       }
     }
@@ -289,6 +310,25 @@ function StreamScreen({navigation, route}) {
       timer.current && clearInterval(timer.current);
       controllerEventListener.current &&
         controllerEventListener.current.remove();
+      if (finishExitTimer.current) {
+        clearTimeout(finishExitTimer.current);
+        finishExitTimer.current = null;
+      }
+      // Leaving without Disconnect must not orphan the session
+      // server-side (the console slot stays busy until Microsoft's
+      // timeout reaps it): stop the stream on the APIs this effect
+      // built. handleExit stops it too — a second stop on a closed
+      // session just errors and is swallowed here.
+      [builtCloudApi, builtHomeApi].forEach(api => {
+        if (api && api.stopStream) {
+          try {
+            const stopResult = api.stopStream();
+            if (stopResult && stopResult.catch) {
+              stopResult.catch(() => {});
+            }
+          } catch (e) {}
+        }
+      });
       // The Disconnect fallback timer must not fire after unmount: it
       // would run handleExit() and navigate Home with needRefresh even
       // though the user already left by another route.
@@ -300,7 +340,10 @@ function StreamScreen({navigation, route}) {
   }, [
     route.params?.sessionId,
     route.params?.streamType,
-    streamingTokens,
+    // A boolean, not the token object: it flips once when the first
+    // tokens arrive and never again on refresh, so a mid-stream token
+    // refresh cannot re-run this effect and rebuild the session.
+    hasStreamingTokens,
     navigation,
     authentication,
   ]);
@@ -316,7 +359,9 @@ function StreamScreen({navigation, route}) {
 
   const webviewRef = React.useRef(null);
   const exitFallbackTimer = React.useRef(null);
+  const finishExitTimer = React.useRef(null);
   const tipsShownRef = React.useRef(false);
+  const connectedToastRef = React.useRef(false);
   const [webviewError, setWebviewError] = React.useState(false);
 
   const handlePowerOff = async () => {
@@ -361,7 +406,11 @@ function StreamScreen({navigation, route}) {
       if (needPoweroff) {
         handlePowerOff();
       }
-      setTimeout(() => {
+      // Tracked so the unmount cleanup can cancel it: untracked, it
+      // would navigate Home even if the user already left by another
+      // route inside this half second.
+      finishExitTimer.current = setTimeout(() => {
+        finishExitTimer.current = null;
         setIsExiting(false);
         Orientation.unlockAllOrientations();
         navigation.navigate({
@@ -382,7 +431,8 @@ function StreamScreen({navigation, route}) {
 
   const handleTimeoutExit = () => {
     const finishTimeoutExit = () => {
-      authentication._tokenStore &&
+      authentication &&
+        authentication._tokenStore &&
         authentication._tokenStore.clearTokenUpdateTime();
       setTimeout(() => {
         RNRestart.restart();
@@ -418,7 +468,7 @@ function StreamScreen({navigation, route}) {
       // A malformed WebView message must not throw inside onMessage.
       return;
     }
-    const {type, message} = data;
+    const {type, message} = data || {};
     if (type === 'other') {
       Alert.alert(String(message ?? ''));
     }
@@ -551,15 +601,36 @@ function StreamScreen({navigation, route}) {
         clearTimeout(exitFallbackTimer.current);
         exitFallbackTimer.current = null;
       }
-      Alert.alert(t('Warning'), t('Streaming is closed.'), [
+      let closedConfirmPressed = false;
+      Alert.alert(
+        t('Warning'),
+        t('Streaming is closed.'),
+        [
+          {
+            text: t('Confirm'),
+            style: 'default',
+            onPress: () => {
+              closedConfirmPressed = true;
+              handleExit();
+            },
+          },
+        ],
         {
-          text: t('Confirm'),
-          style: 'default',
-          onPress: () => {
-            handleExit();
+          onDismiss: () => {
+            // Dismissed without Confirm (e.g. Android back): do not
+            // strand the user on the dead picture — leave via the
+            // same fallback timer the Disconnect path uses.
+            if (!closedConfirmPressed) {
+              if (exitFallbackTimer.current) {
+                clearTimeout(exitFallbackTimer.current);
+              }
+              exitFallbackTimer.current = setTimeout(() => {
+                handleExit();
+              }, 2000);
+            }
           },
         },
-      ]);
+      );
     }
     if (type === 'deviceVibration') {
       const {rumbleData} = message || {};
@@ -646,7 +717,10 @@ function StreamScreen({navigation, route}) {
     if (type === 'connectionstate') {
       setConnectState(message);
       if (message === CONNECTED) {
-        setToastText(t('Connected'));
+        if (!connectedToastRef.current) {
+          connectedToastRef.current = true;
+          setToastText(t('Connected'));
+        }
         // Show the tips modal once per stream: a renegotiation can make
         // the page report 'connected' again, and the modal must not pop
         // up over the game a second time.

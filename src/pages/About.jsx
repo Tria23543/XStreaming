@@ -14,8 +14,9 @@ function AboutScreen({navigation, route}) {
         </View>
         <View>
           <Text variant="titleMedium">
-            XStreaming is a fully open-source mobile client for xCloud and
-            Xbox home streaming, greatly inspired by{' '}
+            {t(
+              'XStreaming is a fully open-source mobile client for xCloud and Xbox home streaming, greatly inspired by',
+            )}{' '}
             <LinkText url={'https://github.com/unknownskl/greenlight'}>
               Greenlight
             </LinkText>
@@ -25,7 +26,9 @@ function AboutScreen({navigation, route}) {
 
       <View style={styles.block}>
         <View style={styles.title}>
-          <Text variant="titleLarge">Want to contribute to XStreaming?</Text>
+          <Text variant="titleLarge">
+            {t('Want to contribute to XStreaming?')}
+          </Text>
         </View>
 
         <View>
@@ -39,7 +42,7 @@ function AboutScreen({navigation, route}) {
 
         <View>
           <Text variant="titleMedium">
-            XStreaming-desktop (Windows/macOS/SteamOS):
+            {t('XStreaming-desktop (Windows/macOS/SteamOS):')}
           </Text>
         </View>
         <View>
@@ -52,7 +55,7 @@ function AboutScreen({navigation, route}) {
       <View style={styles.block}>
         <View style={styles.title}>
           <Text variant="titleLarge">
-            Are you looking for a PlayStation streaming client?
+            {t('Are you looking for a PlayStation streaming client?')}
           </Text>
         </View>
 
@@ -85,14 +88,15 @@ function AboutScreen({navigation, route}) {
       <View style={styles.block}>
         <View style={styles.title}>
           <Text variant="titleLarge">
-            Support XStreaming to Make the Project Better!
+            {t('Support XStreaming to Make the Project Better!')}
           </Text>
         </View>
 
         <View>
           <Text variant="titleMedium">
-            You can contribute through GitHub Sponsors or via the XStreaming
-            online donation platform.
+            {t(
+              'You can contribute through GitHub Sponsors or via the XStreaming online donation platform.',
+            )}
           </Text>
         </View>
         <View>

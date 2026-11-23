@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, StyleSheet} from 'react-native';
+import {View, StyleSheet, ActivityIndicator} from 'react-native';
 import {Text, Button} from 'react-native-paper';
 import {WebView} from 'react-native-webview';
 import {useTranslation} from 'react-i18next';
@@ -11,6 +11,7 @@ function DetailScreen({navigation, route}) {
   const {t} = useTranslation();
   const [authUrl, setAuthUrl] = React.useState('');
   const [loadError, setLoadError] = React.useState(false);
+  const [pageLoading, setPageLoading] = React.useState(true);
   const [webviewKey, setWebviewKey] = React.useState(0);
   const redirectHandled = React.useRef(false);
 
@@ -67,13 +68,16 @@ function DetailScreen({navigation, route}) {
 
   if (authUrl !== '') {
     return (
-      <WebView
-        key={webviewKey}
-        source={{uri: authUrl}}
-        originWhitelist={['*']}
-        setSupportMultipleWindows={false}
-        onError={() => setLoadError(true)}
-        onHttpError={() => setLoadError(true)}
+      <View style={styles.webviewWrap}>
+        <WebView
+          key={webviewKey}
+          source={{uri: authUrl}}
+          originWhitelist={['*']}
+          setSupportMultipleWindows={false}
+          onLoadStart={() => setPageLoading(true)}
+          onLoadEnd={() => setPageLoading(false)}
+          onError={() => setLoadError(true)}
+          onHttpError={() => setLoadError(true)}
         onShouldStartLoadWithRequest={request => {
           if (request.url.startsWith('ms-xal-000000004c20a908:')) {
             handleRedirect(request.url);
@@ -81,13 +85,20 @@ function DetailScreen({navigation, route}) {
           }
           return true;
         }}
-        onNavigationStateChange={navState => {
-          const {url} = navState;
-          if (url.startsWith('ms-xal-000000004c20a908:')) {
-            handleRedirect(url);
-          }
-        }}
-      />
+          onNavigationStateChange={navState => {
+            const {url} = navState;
+            if (url.startsWith('ms-xal-000000004c20a908:')) {
+              handleRedirect(url);
+            }
+          }}
+        />
+        {pageLoading && (
+          <View style={styles.loadingOverlay} pointerEvents="none">
+            <ActivityIndicator size="large" color="#107C10" />
+            <Text style={styles.loadingText}>{t('Loading...')}</Text>
+          </View>
+        )}
+      </View>
     );
   }
 
@@ -104,6 +115,22 @@ function DetailScreen({navigation, route}) {
 }
 
 const styles = StyleSheet.create({
+  webviewWrap: {
+    flex: 1,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#107C10',
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
