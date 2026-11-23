@@ -1,8 +1,9 @@
 import React from 'react';
 import {View, TouchableOpacity, StyleSheet} from 'react-native';
+import {SvgXml} from 'react-native-svg';
 
 type Props = {
-  style: any;
+  style?: any;
   scale?: number;
   size?: number;
   height?: number;
@@ -26,6 +27,19 @@ const Dpad: React.FC<Props> = ({
     onPressOut && onPressOut(name);
   };
 
+  // The plus outline (the cross spans 37.5%..62.5% on both axes),
+  // computed in px for the pad's actual size rather than stretched
+  // from a fixed viewBox, so the stroke is the constant 2px the old
+  // borders drew at every size and aspect ratio. The polygon is
+  // inset by half the stroke, like the inside borders it replaces.
+  const outlineW = size * scale;
+  const outlineH = (height !== undefined ? height : size) * scale;
+  const ox1 = outlineW * 0.375;
+  const ox2 = outlineW * 0.625;
+  const oy1 = outlineH * 0.375;
+  const oy2 = outlineH * 0.625;
+  const outlineSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${outlineW} ${outlineH}"><polygon points="${ox1 + 1},1 ${ox2 - 1},1 ${ox2 - 1},${oy1 + 1} ${outlineW - 1},${oy1 + 1} ${outlineW - 1},${oy2 - 1} ${ox2 - 1},${oy2 - 1} ${ox2 - 1},${outlineH - 1} ${ox1 + 1},${outlineH - 1} ${ox1 + 1},${oy2 - 1} 1,${oy2 - 1} 1,${oy1 + 1} ${ox1 + 1},${oy1 + 1}" fill="none" stroke="#ffffff" stroke-width="2"/></svg>`;
+
   return (
     <View
       style={[
@@ -42,6 +56,9 @@ const Dpad: React.FC<Props> = ({
         },
         style,
       ]}>
+      <View style={styles.outline} pointerEvents="none">
+        <SvgXml xml={outlineSvg} width="100%" height="100%" />
+      </View>
       <TouchableOpacity
         style={[styles.button, styles.dpadLeft]}
         onPressIn={() => {
@@ -95,44 +112,40 @@ const styles = StyleSheet.create({
   dpad: {
     position: 'absolute',
   },
+  outline: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+  },
   button: {
     position: 'absolute',
   },
+  // Touch geometry only — the visible outline is the SVG layer's.
   dpadLeft: {
     width: '50%',
     height: '25%',
-    borderWidth: 2,
-    borderColor: '#fff',
     left: 0,
     top: '37.5%',
-    borderRightWidth: 0,
   },
   dpadTop: {
     width: '25%',
     height: '50%',
-    borderWidth: 2,
-    borderColor: '#fff',
     left: '37.5%',
     top: 0,
-    borderBottomWidth: 0,
   },
   dpadRight: {
     width: '50%',
     height: '25%',
-    borderWidth: 2,
-    borderColor: '#fff',
     left: '50%',
     top: '37.5%',
-    borderLeftWidth: 0,
   },
   dpadBottom: {
     width: '25%',
     height: '50%',
-    borderWidth: 2,
-    borderColor: '#fff',
     left: '37.5%',
     top: '50%',
-    borderTopWidth: 0,
   },
 });
 
