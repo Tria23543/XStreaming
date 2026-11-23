@@ -1,6 +1,6 @@
 export default {
   translation: {
-    Consoles: '终端',
+    Consoles: '主机',
     Xcloud: '云游戏',
     Settings: '设置',
     Login: '登录',
@@ -8,7 +8,7 @@ export default {
     Profile: '个人信息',
     Feedback: '交流及赞赏',
     'Fetching user info...': '正在获取用户信息...',
-    'Fetching consoles...': '正在获取终端信息...',
+    'Fetching consoles...': '正在获取主机信息...',
     'Login successful, refreshing login credentials...':
       '登录成功，正在刷新登录凭证...',
     'Checking login status...': '正在检查登录...',
@@ -45,7 +45,7 @@ export default {
       '设置串流分辨率，支持720P/1080P/1080P(HQ)切换',
     'Host stream bitrate': '主机串流码率',
     'Cloud stream bitrate': '云游戏码率',
-    'Audio bitrate': '声音',
+    'Audio bitrate': '声音码率',
     'Set the streaming audio bitrate': '设置声音码率',
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
       '设置主机串流码率(注意：并不是码率越高越好，最终码率以串流协商为准)',
@@ -101,7 +101,7 @@ export default {
     'Select gamepad kernel; you cannot use the virtual gamepad in the Web kernel':
       '选择手柄驱动内核, 在Web内核下你将无法使用虚拟手柄',
     'Config opacity of virtual gamepad': '设置虚拟按键透明度',
-    'Power on when streaming': '开机并串流',
+    'Power on when streaming': '串流时开机',
     power_on_description:
       '选择主机串流时是否开启，默认主机开启睡眠模式后串流时电源灯不会亮，开启此选项后主机会彻底开机，并可能唤醒显示器',
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
@@ -152,7 +152,6 @@ export default {
     Bitrate: '码率',
     DT: '解码',
     'Virtual Opacity': '虚拟按键透明度',
-    On: '开',
     Off: '关',
     Enable: '开',
     Disable: '关',
@@ -205,5 +204,33 @@ export default {
       '暂无可用的串流服务器，请稍后重试',
     stream_warn_text:
       '为了获得更好的游戏体验，建议使用手柄控制器游玩，手柄震动、扳机震动仅在iOS 14及以上生效',
+    'All games': '全部游戏',
+    'Jump back in': '继续游玩',
+    'Most popular': '最热门',
+    'Leaving soon': '即将下架',
+    'Mouse and keyboard': '鼠标和键盘',
+    'Touch controls': '触控控制',
+    'Show all': '显示全部',
+    'Included in your subscription': '你的订阅包含',
+    'Recently added': '最近添加',
+    'Stream your own game': '串流你自己的游戏',
+    'Free to play': '免费游玩',
+    'Needs to be purchased': '需要购买',
+    VeryWeak: '非常弱',
+    Weak: '弱',
+    Normal: '正常',
+    Strong: '强',
+    VeryStrong: '非常强',
+    Error: '错误',
+    Later: '稍后',
+    Locked: '未解锁',
+    Tips: '提示',
+    Fit: '适应',
+    Retry: '重试',
+    'Resolution: 720P (next stream)': '分辨率：720P（下次串流）',
+    'Resolution: 1080P (next stream)': '分辨率：1080P（下次串流）',
+    'Resolution: 1080P HQ (next stream)': '分辨率：1080P HQ（下次串流）',
+    'The stream page failed to load. Please go back and try again.':
+      '串流页面加载失败，请返回后重试',
   },
 };

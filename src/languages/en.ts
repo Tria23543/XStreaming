@@ -55,7 +55,6 @@ export default {
     XchomeSettings: 'Console Streaming',
     Auto: 'Auto',
     Custom: 'Custom',
-    On: 'On',
     Off: 'Off',
     Horizontal: 'Horizontal',
     'About the author': 'About the author',
