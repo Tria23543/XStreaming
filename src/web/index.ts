@@ -15,6 +15,18 @@ export default class WebApi {
     this.settings = getSettings();
   }
 
+  getClaims() {
+    const xui = this.webToken?.data?.DisplayClaims?.xui;
+    if (!xui || !xui[0]) {
+      throw new Error('Web token is not ready, please log in again');
+    }
+    return xui[0];
+  }
+
+  getAuthHeader() {
+    return 'XBL3.0 x=' + this.getClaims().uhs + ';' + this.webToken.data.Token;
+  }
+
   sendCommand(
     consoleId: string,
     commandType: string,
@@ -27,8 +39,6 @@ export default class WebApi {
     if (params === undefined) {
       params = [];
     }
-
-    console.log('params:', params);
 
     const postParams = {
       destination: 'Xbox',
@@ -47,10 +57,7 @@ export default class WebApi {
           '/commands',
           {
             Authorization:
-              'XBL3.0 x=' +
-              this.webToken.data.DisplayClaims.xui[0].uhs +
-              ';' +
-              this.webToken.data.Token,
+              this.getAuthHeader(),
             'Accept-Language': 'en-US',
             skillplatform: 'RemoteManagement',
             'x-xbl-contract-version': '4',
@@ -69,7 +76,7 @@ export default class WebApi {
           }
         })
         .catch(e => {
-          console.log('error:', e);
+          log.error('[sendCommand] error:', e?.message || e);
           reject(e);
         });
     });
@@ -97,10 +104,7 @@ export default class WebApi {
       http
         .get('xccs.xboxlive.com', '/consoles/' + consoleId, {
           Authorization:
-            'XBL3.0 x=' +
-            this.webToken.data.DisplayClaims.xui[0].uhs +
-            ';' +
-            this.webToken.data.Token,
+            this.getAuthHeader(),
           'Accept-Language': 'en-US',
           skillplatform: 'RemoteManagement',
           'x-xbl-contract-version': '4',
@@ -134,10 +138,7 @@ export default class WebApi {
           '/lists/devices?queryCurrentDevice=false&includeStorageDevices=true',
           {
             Authorization:
-              'XBL3.0 x=' +
-              this.webToken.data.DisplayClaims.xui[0].uhs +
-              ';' +
-              this.webToken.data.Token,
+              this.getAuthHeader(),
             'Accept-Language': 'en-US',
             'x-xbl-contract-version': '2',
             'x-xbl-client-name': 'XboxApp',
@@ -171,10 +172,7 @@ export default class WebApi {
           '/users/me/profile/settings?settings=GameDisplayName,GameDisplayPicRaw,Gamerscore,Gamertag',
           {
             Authorization:
-              'XBL3.0 x=' +
-              this.webToken.data.DisplayClaims.xui[0].uhs +
-              ';' +
-              this.webToken.data.Token,
+              this.getAuthHeader(),
             'Accept-Language': 'en-US',
             'x-xbl-contract-version': '3',
             'x-xbl-client-name': 'XboxApp',
@@ -187,7 +185,7 @@ export default class WebApi {
             '[getUserProfile] /users/me/profile response:',
             JSON.stringify(res),
           );
-          if (res.profileUsers) {
+          if (res.profileUsers && res.profileUsers.length > 0) {
             const infos: any = {};
             res.profileUsers[0].settings.forEach((item: any) => {
               infos[item.id] = item.value;
@@ -218,10 +216,7 @@ export default class WebApi {
           '/users/me/people/social/decoration/' + params.join(','),
           {
             Authorization:
-              'XBL3.0 x=' +
-              this.webToken.data.DisplayClaims.xui[0].uhs +
-              ';' +
-              this.webToken.data.Token,
+              this.getAuthHeader(),
             'Accept-Language': this.settings.preferred_game_language
               ? this.settings.preferred_game_language
               : 'en-US',
@@ -240,7 +235,7 @@ export default class WebApi {
           }
         })
         .catch(e => {
-          console.log('[getFriends] error:', e);
+          log.error('[getFriends] error:', e?.message || e);
           reject(e);
         });
     });
@@ -249,8 +244,9 @@ export default class WebApi {
   getHistoryAchivements() {
     const http = new Http();
     return new Promise((resolve, reject) => {
-      const uhs = this.webToken.data.DisplayClaims.xui[0].uhs;
-      const xid = this.webToken.data.DisplayClaims.xui[0].xid;
+      const claims = this.getClaims();
+      const uhs = claims.uhs;
+      const xid = claims.xid;
 
       http
         .get(
@@ -276,7 +272,7 @@ export default class WebApi {
           }
         })
         .catch(e => {
-          console.log('[getHistoryAchivements] error:', e);
+          log.error('[getHistoryAchivements] error:', e?.message || e);
           reject(e);
         });
     });
@@ -285,8 +281,9 @@ export default class WebApi {
   getAchivementDetail(titleId: string) {
     const http = new Http();
     return new Promise((resolve, reject) => {
-      const uhs = this.webToken.data.DisplayClaims.xui[0].uhs;
-      const xid = this.webToken.data.DisplayClaims.xui[0].xid;
+      const claims = this.getClaims();
+      const uhs = claims.uhs;
+      const xid = claims.xid;
 
       http
         .get(
@@ -312,7 +309,7 @@ export default class WebApi {
           }
         })
         .catch(e => {
-          console.log('[getAchivementDetail] error:', e);
+          log.error('[getAchivementDetail] error:', e?.message || e);
           reject(e);
         });
     });
