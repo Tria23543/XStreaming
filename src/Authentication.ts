@@ -105,6 +105,13 @@ export default class Authentication {
         return resolve(false);
       } catch (e) {
         log.error('[checkAuthentication] error:', (e && e.message) || e);
+        // Clear the registered resolver before resolving: if the
+        // throw came from startSilentFlow() AFTER the resolver was
+        // registered, leaving it set would make the code below store
+        // this already-resolved false promise as the in-flight
+        // check, and every later check would return that stale
+        // false forever.
+        this._pendingCheckResolve = null;
         return resolve(false);
       }
     });
