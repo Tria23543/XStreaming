@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+// 2xx success means the same for reads and writes here: a POST that
+// creates something legitimately answers 201 (and 204 No Content),
+// and treating those as errors made callers report failures for
+// requests that had actually succeeded.
+const isSuccessStatus = (status: number) =>
+  status === 200 || status === 201 || status === 202 || status === 204;
+
 export default class Http {
   get(host: string, path: string, headers: any) {
     return new Promise((resolve, reject) => {
@@ -14,7 +21,7 @@ export default class Http {
           timeout: 15000,
         })
         .then((res: any) => {
-          if (res.status === 200 || res.status === 204) {
+          if (isSuccessStatus(res.status)) {
             resolve(res.data);
           } else {
             resolve({
@@ -48,7 +55,7 @@ export default class Http {
           timeout: 15000,
         })
         .then((res: any) => {
-          if (res.status === 200 || res.status === 202) {
+          if (isSuccessStatus(res.status)) {
             resolve(res.data);
           } else {
             resolve({
