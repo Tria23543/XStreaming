@@ -65,15 +65,13 @@ export default {
     'Select video stream format, if you want video fullscreen, please select Stretch or Zoom':
       '选择视频流格式，如果你需要画面全屏,请选择拉伸或缩放，如果你的物理显示器不是16:9，会导致画面不协调或展示不全',
     'Aspect ratio': '保持长宽比(16:9)',
-    'Native: Use native gamepad kernal to vibrate':
+    'Native: Use native gamepad kernel to vibrate':
       'Native: 使用安卓原生手柄内核震动',
     "Device: Use Phone/Pad's vibrate":
       'Device: 使用手机或平板机身震动，如需手柄震动，请配合震动重定向使用',
-    'Webview: Use Chromium kernal to vibrate':
-      'Webview: 使用内置Chromium内核震动',
     Stretch: '拉伸',
     Zoom: '缩放',
-    'Gamepad kernal': '手柄内核',
+    'Gamepad kernel': '手柄内核',
     'If your controller supports vibration, you can set whether it vibrates during the game':
       '如果手柄支持震动，可以设置游戏中是否震动。',
     'Vibration mode': '震动模式',
@@ -95,8 +93,6 @@ export default {
     'Preferred language of game': '游戏偏好语言',
     'Set language of cloud game':
       '设置云游戏语言,该选项会影响云游戏语言及好友、成就语言',
-    'Key mapping': '按键映射',
-    'Mapping key of gamepad': '映射手柄按键',
     'Currently no network connection, please connect and try again':
       '当前无网络连接，请连接后再使用',
     Logout: '退出登录',
@@ -109,23 +105,17 @@ export default {
     'Signal server': '信令服务器',
     'Virtual gamepad': '虚拟手柄',
     'Always display the virtual gamepad': '始终显示虚拟手柄',
-    'Select gamepad kernal, you can not use virtual gamepad in Web kernal':
+    'Select gamepad kernel, you can not use virtual gamepad in Web kernel':
       '选择手柄驱动内核, 在Web内核下你将无法使用虚拟手柄',
     'Config opacity of virtual gamepad': '设置虚拟按键透明度',
     'Display settings': '画面设置',
     'Set parameters such as screen clarity and saturation':
       '设置画面清晰度、饱和度等参数',
     'Override native Xbox gamepad support': '覆盖安卓手柄支持',
-    bind_usb_device_description:
-      '强制XStreaming的USB驱动接管所有受支持的Xbox/DualSense手柄(实验性)',
-    bind_usb_device_tips:
-      '该设置只有支持xinput或dualsense协议的手柄有线连接(OTG)才生效',
     'Power on when streaming': '开机并串流',
     power_on_description:
       '选择主机串流时是否开启，默认主机开启睡眠模式后串流时电源灯不会亮，开启此选项后主机会彻底开机，并可能唤醒显示器',
     'Low Latency Mode': 'WIFI低延迟模式',
-    low_latency_mode_description:
-      '使用Android wifi性能模式，以实现最佳的串流效果。可能导致某些设备蓝牙出现延迟，如果遇到蓝牙延迟问题，请选择停用此模式',
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
       '📢自定义虚拟按键位置可能跟实际渲染存在误差，请以实际效果为准',
     'Customize virtual buttons': '自定义虚拟按键',
@@ -160,7 +150,6 @@ export default {
     AudioSettings: '声音',
     XcloudSettings: '云游戏',
     XchomeSettings: '主机串流',
-    SensorSettings: '传感器',
     Custom: '自定义',
     Size: '大小',
     Show: '显示',
@@ -174,7 +163,7 @@ export default {
     Dark: '暗黑',
     Standby: '待机',
     Friends: '好友',
-    Achivements: '成就',
+    Achievements: '成就',
     Auto: '自动',
     bitrate: '码率',
     Language: '语言',
@@ -210,37 +199,15 @@ export default {
     Back: '返回',
     Save: '保存',
     Saved: '保存成功',
-    'Save Maping': '保存',
     Reset: '恢复默认值',
     Delete: '删除',
     Exit: '退出',
     Connected: '连接成功',
     'Update Warning': '新版本提示',
-    gyroTitle: '启用陀螺仪',
-    gyroDesc:
-      '是否强制使用设备/控制器陀螺仪，当按下LT键时陀螺仪模拟右摇杆，常用于FPS游戏',
-    gyroTips: '控制器陀螺仪只支持Android12+',
-    gyroSenTitleX: '陀螺仪X轴灵敏度',
-    gyroSenDescX: '调节陀螺仪X轴灵敏度',
-    gyroSenTitleY: '陀螺仪Y轴灵敏度',
-    gyroSenDescY: '调节陀螺仪Y轴灵敏度',
     byorg: '该游戏属于自购游戏，非XGPU库游戏，如需游玩，请保证已购买此游戏。',
     Native: '原生',
     Device: '设备',
     Controller: '控制器',
-    show_menu_title: '显示快捷菜单',
-    show_menu_desc: '串流界面右下角始终显示快捷菜单。',
-    sensorInvertTitle: '反转陀螺仪模拟摇杆',
-    sensorInvertDesc: '某些设备陀螺仪方向跟实际方向相反，可以在这里反转方向。',
-    x_axies: 'X轴',
-    y_axies: 'Y轴',
-    all_axies: '全部',
-    DualSense_adaptive_trigger_left: '设置DualSense左扳机',
-    DualSense_adaptive_trigger_left_desc:
-      '可以将DualSense左扳机设置为阻尼/扳机/自动步枪扳机(开启此功能需打开安卓覆盖驱动(设置-覆盖安卓手柄支持-开启)，并将DualSense控制器有线连接)',
-    DualSense_adaptive_trigger_right: '设置DualSense右扳机',
-    DualSense_adaptive_trigger_right_desc:
-      '可以将DualSense右扳机设置为阻尼/扳机/自动步枪扳机(开启此功能需打开安卓覆盖驱动(设置-覆盖安卓手柄支持-开启)，并将DualSense控制器有线连接)',
     Resistance: '阻尼',
     Trigger: '扳机',
     'Automatic Trigger': '自动步枪',
