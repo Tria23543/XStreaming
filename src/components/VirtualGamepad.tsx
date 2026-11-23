@@ -1,5 +1,10 @@
 import React from 'react';
-import {StyleSheet, View, TouchableOpacity, Dimensions} from 'react-native';
+import {
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  useWindowDimensions,
+} from 'react-native';
 import GamepadButton from './GamepadButton';
 import {ReactNativeJoystick} from '../components/Joystick';
 
@@ -40,7 +45,23 @@ const VirtualGamepad: React.FC<Props> = ({
     [onStickMove],
   );
 
-  const {width} = Dimensions.get('window');
+  // Per-stick stable handlers for the Joystick props: the inline
+  // closures used before rebuilt the stick's gesture handling on
+  // every render.
+  const handleLeftStick = React.useCallback(
+    (data: any) => handleStickMove('left', data),
+    [handleStickMove],
+  );
+
+  const handleRightStick = React.useCallback(
+    (data: any) => handleStickMove('right', data),
+    [handleStickMove],
+  );
+
+  // useWindowDimensions, not a one-off Dimensions.get: the centre
+  // buttons' positions must follow a rotation, not the size captured
+  // at first render.
+  const {width} = useWindowDimensions();
 
   const nexusLeft = width * 0.5 - 20;
   const viewLeft = width * 0.5 - 100;
@@ -180,9 +201,9 @@ const VirtualGamepad: React.FC<Props> = ({
         <ReactNativeJoystick
           color="#ffffff"
           radius={50}
-          onMove={data => handleStickMove('left', data)}
-          onStart={data => handleStickMove('left', data)}
-          onStop={data => handleStickMove('left', data)}
+          onMove={handleLeftStick}
+          onStart={handleLeftStick}
+          onStop={handleLeftStick}
         />
       </View>
 
@@ -190,9 +211,9 @@ const VirtualGamepad: React.FC<Props> = ({
         <ReactNativeJoystick
           color="#ffffff"
           radius={50}
-          onMove={data => handleStickMove('right', data)}
-          onStart={data => handleStickMove('right', data)}
-          onStop={data => handleStickMove('right', data)}
+          onMove={handleRightStick}
+          onStart={handleRightStick}
+          onStop={handleRightStick}
         />
       </View>
     </View>

@@ -31,18 +31,20 @@ const Display: React.FC<Props> = ({options, onChange}) => {
       contrast: [50, 150],
       brightness: [50, 150],
     };
-    const merged = {...defaultValue};
-    if (options) {
-      Object.keys(defaultValue).forEach(key => {
-        const v = (options as any)[key];
-        if (typeof v === 'number' && !isNaN(v)) {
-          const range = RANGES[key];
-          (merged as any)[key] = range
-            ? Math.min(range[1], Math.max(range[0], v))
-            : v;
-        }
-      });
-    }
+    // Start from the stored object itself so keys this component
+    // does not know about survive a save instead of being silently
+    // dropped; the four known keys are then overwritten with their
+    // clamped (or default) values.
+    const merged: any = {...defaultValue, ...(options || {})};
+    Object.keys(defaultValue).forEach(key => {
+      const v = options ? (options as any)[key] : undefined;
+      if (typeof v === 'number' && !isNaN(v)) {
+        const range = RANGES[key];
+        merged[key] = range ? Math.min(range[1], Math.max(range[0], v)) : v;
+      } else {
+        merged[key] = (defaultValue as any)[key];
+      }
+    });
     setInnerOptions(merged);
   }, [options]);
 
@@ -56,8 +58,17 @@ const Display: React.FC<Props> = ({options, onChange}) => {
 
   const step = (key: string, delta: number, min: number, max: number) => {
     const current = innerOptions[key];
-    const next = current + delta;
-    if (next >= min && next <= max) {
+    let next = current + delta;
+    // An off-grid value must be able to land ON the boundary:
+    // stepping down from 55 toward a minimum of 50 gives 45, which
+    // the old in-range check rejected — trapping the value above
+    // the minimum forever.
+    if (next < min) {
+      next = current > min ? min : current;
+    } else if (next > max) {
+      next = current < max ? max : current;
+    }
+    if (next !== current) {
       handleValChange(key, next);
     }
   };

@@ -6,13 +6,25 @@ import icons from '../common/virtualgp';
 
 type Props = {
   name: string;
+  width?: number;
+  height?: number;
+  scale?: number;
   style: any;
   onPressIn: (name: string) => void;
   onPressOut: (name: string) => void;
 };
 
+// The single GamepadButton implementation. The layout editor's copy
+// (components/CustomGamepad/GamepadButton) used to duplicate this
+// file with only the width/height/scale props added; it now re-exports
+// this one, so a gesture fix can never land in one copy and not the
+// other. With the defaults (40x40 at scale 1) this renders exactly
+// what the fixed-size version did.
 const GamepadButton: React.FC<Props> = ({
   name,
+  width = 40,
+  height = 40,
+  scale = 1,
   onPressIn,
   onPressOut,
   style,
@@ -44,7 +56,11 @@ const GamepadButton: React.FC<Props> = ({
   return (
     <GestureDetector gesture={longPressGesture}>
       <TouchableOpacity style={style}>
-        <SvgXml xml={icons[name]} width="40" height="40" />
+        <SvgXml
+          xml={icons[name]}
+          width={width * scale}
+          height={height * scale}
+        />
       </TouchableOpacity>
     </GestureDetector>
   );

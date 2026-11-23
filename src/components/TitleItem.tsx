@@ -6,7 +6,7 @@ import {useTranslation} from 'react-i18next';
 
 type Props = {
   titleItem: any;
-  onPress: (titleItem: any) => {};
+  onPress: (titleItem: any) => void;
 };
 
 // Which badge a title gets. The /v2/titles response is NOT an entitlement
@@ -28,7 +28,9 @@ export function getTitleBadge(
   if (!titleItem || !titleItem.details) {
     return null;
   }
-  const programs = titleItem.details.programs || [];
+  const programs = Array.isArray(titleItem.details.programs)
+    ? titleItem.details.programs
+    : [];
   const isOwned =
     !titleItem.XCloudTitleId && programs.indexOf('BYOG') > -1;
   if (isOwned) {
@@ -58,6 +60,12 @@ const TitleItem: React.FC<Props> = ({titleItem, onPress}) => {
     titleItem.Image_Tile && titleItem.Image_Tile.URL
       ? 'https:' + titleItem.Image_Tile.URL
       : '';
+
+  // A recycled tile (same list key, different game after the data
+  // shifted) must show its spinner again while the new picture loads.
+  React.useEffect(() => {
+    setLoading(true);
+  }, [imageUrl]);
 
   const handlePress = () => {
     onPress && onPress(titleItem);
