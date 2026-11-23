@@ -101,14 +101,33 @@ export const getSettings = (): Settings => {
   }
   try {
     const _settings = JSON.parse(settings) as Settings;
+    // A stored string/array is not a settings object: Object.assign
+    // would merge its index keys into the result. Degrade to the
+    // defaults copy, like the parse-failure path below.
+    if (
+      !_settings ||
+      typeof _settings !== 'object' ||
+      Array.isArray(_settings)
+    ) {
+      return {
+        ...defaultSettings,
+        display_options: {...defaultSettings.display_options},
+      };
+    }
     const merged = Object.assign({}, defaultSettings, _settings);
     // Object.assign is shallow: a partial stored display_options
     // (older version, partial save) would replace the whole object
     // and hand every reader undefined fields. Merge it over the
-    // defaults instead.
+    // defaults instead. A non-object display_options (a stored
+    // string would spread its indices) counts as absent.
+    const storedOptions = _settings.display_options;
     merged.display_options = {
       ...defaultSettings.display_options,
-      ...(_settings.display_options || {}),
+      ...(storedOptions &&
+      typeof storedOptions === 'object' &&
+      !Array.isArray(storedOptions)
+        ? storedOptions
+        : {}),
     };
     return merged;
   } catch {

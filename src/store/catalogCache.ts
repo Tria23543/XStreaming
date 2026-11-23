@@ -37,7 +37,7 @@ export type CatalogCache = {
 // read are kept, which holds the cache to roughly a megabyte. `details`
 // is kept whole: the badge logic (programs / hasEntitlement /
 // isFreeInStore) lives on it.
-const projectTitle = (item: any) => ({
+export const projectTitle = (item: any) => ({
   productId: item.productId,
   // Normalise the fields the Cloud screen dereferences as specific
   // types: a truthy non-string ProductTitle throws in its keyword
@@ -58,12 +58,30 @@ const projectTitle = (item: any) => ({
   details: item.details,
 });
 
-// Cheap fingerprint of the projected titles, stored in the meta. The
-// two storage writes are not atomic: an interruption between them can
-// pair NEW titles with the PREVIOUS meta, whose owner attests to the
-// old titles. The fingerprint lets the read side detect that torn
-// pairing instead of trusting the mismatched owner.
+// Fingerprint of the projected titles' full content, stored in the
+// meta. The two storage writes are not atomic: an interruption between
+// them can pair NEW titles with the PREVIOUS meta, whose owner attests
+// to the old titles. The fingerprint lets the read side detect that
+// torn pairing instead of trusting the mismatched owner. It hashes the
+// serialised titles — IDs, entitlement details and all — because a
+// routine refresh of the same catalog yields the same productId
+// sequence, so an IDs-only fingerprint would validate the torn pairing
+// in exactly the common case.
 const titlesFingerprint = (titles: any[]): string => {
+  const json = JSON.stringify(titles);
+  let hash = 0;
+  for (let i = 0; i < json.length; i++) {
+    hash = (hash * 31 + json.charCodeAt(i)) | 0;
+  }
+  return titles.length + ':' + json.length + ':' + hash;
+};
+
+// The previous fingerprint format (productIds only), kept so a
+// cache written by v6.3.8 is still accepted on its first load under
+// the content fingerprint — it is re-saved in the new format on the
+// next save — instead of being refused and leaving an offline open
+// with no cached fallback.
+const legacyTitlesFingerprint = (titles: any[]): string => {
   const ids = titles.map(t => t.productId).join('|');
   let hash = 0;
   for (let i = 0; i < ids.length; i++) {
@@ -177,7 +195,8 @@ export const loadCatalogCache = (): CatalogCache | null => {
     // accepted; they gain one on the next save.
     if (
       typeof meta.fingerprint === 'string' &&
-      meta.fingerprint !== titlesFingerprint(titles)
+      meta.fingerprint !== titlesFingerprint(titles) &&
+      meta.fingerprint !== legacyTitlesFingerprint(titles)
     ) {
       return null;
     }
@@ -193,7 +212,10 @@ export const loadCatalogCache = (): CatalogCache | null => {
     });
     return {
       savedAt: meta.savedAt,
-      titles,
+      // Normalise on the way out as well: the fingerprint above runs
+      // over the stored form, but the screen must only ever receive
+      // entries whose dereferenced fields have the projected types.
+      titles: titles.map(projectTitle),
       sections,
       owner: typeof meta.owner === 'string' ? meta.owner : null,
     };
