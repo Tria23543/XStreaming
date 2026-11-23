@@ -2,31 +2,34 @@ import React from 'react';
 import {StyleSheet, View, ScrollView, Image} from 'react-native';
 import {Text} from 'react-native-paper';
 import LinkText from '../components/LinkText';
+import {useTranslation} from 'react-i18next';
 
 function FeedbackScreen({navigation, route}) {
+  const {t} = useTranslation();
   return (
     <ScrollView style={styles.container}>
       <View style={styles.block}>
         <View style={styles.title}>
-          <Text variant="titleLarge">Community</Text>
+          <Text variant="titleLarge">{t('Community')}</Text>
         </View>
         <View>
           <Text variant="titleMedium">
-            Interested in console streaming, cloud gaming and streaming
-            technology? You are welcome to join the author's QQ group chat.
+            {t(
+              "Interested in console streaming, cloud gaming and streaming technology? You are welcome to join the author's QQ group chat.",
+            )}
           </Text>
-          <Text variant="titleMedium">QQ group: 964721224</Text>
+          <Text variant="titleMedium">{t('QQ group: 964721224')}</Text>
         </View>
       </View>
 
       <View style={styles.block}>
         <View style={styles.title}>
-          <Text variant="titleLarge">Support the author</Text>
+          <Text variant="titleLarge">{t('Support the author')}</Text>
         </View>
 
         <View>
           <Text variant="titleMedium">
-            You can also support XStreaming through GitHub Sponsors:
+            {t('You can also support XStreaming through GitHub Sponsors:')}
           </Text>
           <LinkText url={'https://github.com/sponsors/Geocld'}>
             https://github.com/sponsors/Geocld
@@ -53,10 +56,6 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 10,
-  },
-  image: {
-    width: '100%',
-    height: 500,
   },
 });
 
