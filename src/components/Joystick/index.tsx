@@ -23,13 +23,18 @@ export const ReactNativeJoystick = ({
   const [x, setX] = useState(wrapperRadius - nippleRadius);
   const [y, setY] = useState(wrapperRadius - nippleRadius);
 
-  // Whether the current gesture actually started: onFinalize (which
-  // drives handleTouchEnd) also fires when a gesture FAILED before
-  // starting, and a stop emitted then would centre a stick the touch
-  // never owned. The same guard GamepadButton uses. It is armed
-  // inside emitTouch, AFTER the touch check: arming it in
-  // handleTouchStart would also arm it for a start event carrying no
-  // touch, whose onStart payload is then never sent.
+  // Whether this stick has reported an axis for the current gesture:
+  // onFinalize (which drives handleTouchEnd) also fires when a
+  // gesture FAILED before starting, and a stop emitted then would
+  // centre a stick the touch never owned — so the zeroing stop is
+  // gated on this flag. It is armed inside emitTouch by ANY event
+  // that carries a touch, start OR move: the Pan gesture's onStart
+  // event does not reliably carry changedTouches while its
+  // onTouchesMove events do, so keying the release on the start
+  // event alone could block the stop for a gesture that demonstrably
+  // steered — leaving the axis locked at its last value after the
+  // thumb lifted (user-reported on v6.3.9: steering stuck to one
+  // side in Forza).
   const startedRef = React.useRef(false);
 
   // One computation for both start and move: a start used to report
@@ -41,9 +46,9 @@ export const ReactNativeJoystick = ({
       if (!e) {
         return;
       }
-      if (type === 'start') {
-        startedRef.current = true;
-      }
+      // Any touch-carrying event means this stick is reporting for
+      // this gesture, so its release must send the zeroing stop.
+      startedRef.current = true;
       const fingerX = e.x;
       const fingerY = e.y;
       let coordinates = {
