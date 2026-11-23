@@ -159,7 +159,7 @@ export default class XcloudApi {
           }
         })
         .catch(e => {
-          log.info('[startSession] error:', e);
+          log.info('[startSession] error:', (e && e.message) || e);
           reject(e);
         });
     });
@@ -223,27 +223,32 @@ export default class XcloudApi {
                 );
                 break;
               }
-              // Do MSAL Auth
-              this.authentication._xal
-                .getMsalToken(this.authentication._tokenStore)
-                .then(msalToken => {
-                  this.sendMSALAuth(msalToken.data.lpt)
-                    .then(() => {
-                      this.waitState(attempts + 1)
-                        .then(state => {
-                          resolve(state);
-                        })
-                        .catch(error => {
-                          reject(error);
-                        });
-                    })
-                    .catch(error => {
-                      reject(error);
-                    });
-                })
-                .catch(error => {
-                  reject(error);
-                });
+              // Do MSAL Auth. Pace the retry with the same 1s delay
+              // the provisioning branch uses: recursing immediately
+              // would fire up to 180 back-to-back MSAL refresh-token
+              // exchanges as fast as the network allows.
+              setTimeout(() => {
+                this.authentication._xal
+                  .getMsalToken(this.authentication._tokenStore)
+                  .then(msalToken => {
+                    this.sendMSALAuth(msalToken.data.lpt)
+                      .then(() => {
+                        this.waitState(attempts + 1)
+                          .then(state => {
+                            resolve(state);
+                          })
+                          .catch(error => {
+                            reject(error);
+                          });
+                      })
+                      .catch(error => {
+                        reject(error);
+                      });
+                  })
+                  .catch(error => {
+                    reject(error);
+                  });
+              }, 1000);
               break;
             case 'Failed':
               reject(
@@ -259,7 +264,7 @@ export default class XcloudApi {
           }
         })
         .catch(e => {
-          log.info('[waitState] error:', e);
+          log.info('[waitState] error:', (e && e.message) || e);
           reject(e);
         });
     });
@@ -443,8 +448,13 @@ export default class XcloudApi {
                 candidateAddress.length > 4 &&
                 candidateAddress[4].substr(0, 4) === '2001'
               ) {
-                const address = new Address6(candidateAddress[4]);
-                const teredo = address.inspectTeredo();
+                let teredo;
+                try {
+                  const address = new Address6(candidateAddress[4]);
+                  teredo = address.inspectTeredo();
+                } catch (e) {
+                  continue;
+                }
 
                 computedCandidates.push({
                   candidate:
@@ -536,7 +546,7 @@ export default class XcloudApi {
           }
         })
         .catch(e => {
-          log.info('[checkIceResponse] error:', e);
+          log.info('[checkIceResponse] error:', (e && e.message) || e);
           reject(e);
         });
     });
@@ -668,7 +678,7 @@ export default class XcloudApi {
           resolve(res.data);
         })
         .catch(e => {
-          log.info('getActiveSessions error: ', e);
+          log.info('getActiveSessions error: ', (e && e.message) || e);
           resolve([]);
         });
     });
@@ -684,7 +694,7 @@ export default class XcloudApi {
           timeout: 30000,
         })
         .then(res => {
-          if (res.status === 200) {
+          if (res.status === 200 && res.data && Array.isArray(res.data.Products)) {
             officialTitles = res.data.Products;
           }
           resolve(officialTitles);
@@ -714,8 +724,11 @@ export default class XcloudApi {
       // Get officialTitles
       this.getOfficialTitles().then(async officialTitles => {
         // Fix: v2/titles API can not get full games
+        const safeOfficialTitles = Array.isArray(officialTitles)
+          ? officialTitles
+          : [];
         const mergeProductIds = [
-          ...new Set([...productIdQueue, ...officialTitles]),
+          ...new Set([...productIdQueue, ...safeOfficialTitles]),
         ];
         // Hydrate in chunks of 200, fetched in parallel batches of 4,
         // reporting progress after each batch so the library screen can
@@ -797,7 +810,7 @@ export default class XcloudApi {
             }
           }
         } catch (e) {
-          log.info('getGamePassProducts error:', e);
+          log.info('getGamePassProducts error:', (e && e.message) || e);
           reject(e);
           return;
         }
@@ -824,7 +837,7 @@ export default class XcloudApi {
           resolve(res.data);
         })
         .catch(e => {
-          log.info('getTitles error: ', e);
+          log.info('getTitles error: ', (e && e.message) || e);
           resolve([]);
         });
     });
