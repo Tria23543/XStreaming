@@ -7,6 +7,15 @@ import {
 } from 'react-native';
 import GamepadButton from './GamepadButton';
 import {ReactNativeJoystick} from '../components/Joystick';
+import {SvgXml} from 'react-native-svg';
+
+// The D-pad's plus outline in its 76x80 box (cross centre at 38,40),
+// drawn by an SVG layer: the four touch segments used to draw it with
+// their own borders, and extending the arms to meet at the centre
+// (the dead-zone fix) joined those borders into an internal square
+// outline. The polygon is inset by half the stroke, like the inside
+// borders it replaces, and draws the outer outline only.
+const DPAD_OUTLINE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 80"><polygon points="29,1 47,1 47,31 75,31 75,49 47,49 47,79 29,79 29,49 1,49 1,31 29,31" fill="none" stroke="#ffffff" stroke-width="2"/></svg>`;
 
 type Props = {
   opacity: number;
@@ -160,6 +169,9 @@ const VirtualGamepad: React.FC<Props> = ({
         onPressOut={handlePressOut}
       />
 
+      <View style={[styles.dpadOutline, {opacity}]} pointerEvents="none">
+        <SvgXml xml={DPAD_OUTLINE_SVG} width="100%" height="100%" />
+      </View>
       <TouchableOpacity
         style={[styles.button, styles.dpadLeft, {opacity}]}
         onPressIn={() => {
@@ -292,41 +304,37 @@ const styles = StyleSheet.create({
     right: 180,
     bottom: 80,
   },
+  dpadOutline: {
+    position: 'absolute',
+    left: 30,
+    bottom: 50,
+    width: 76,
+    height: 80,
+  },
+  // Touch geometry only — the visible outline is the SVG layer's.
   dpadLeft: {
     width: 38,
     height: 20,
-    borderWidth: 2,
-    borderColor: '#fff',
     left: 30,
     bottom: 80,
-    borderRightWidth: 0,
   },
   dpadTop: {
     width: 20,
     height: 40,
-    borderWidth: 2,
-    borderColor: '#fff',
     left: 58,
     bottom: 90,
-    borderBottomWidth: 0,
   },
   dpadRight: {
     width: 38,
     height: 20,
-    borderWidth: 2,
-    borderColor: '#fff',
     left: 68,
     bottom: 80,
-    borderLeftWidth: 0,
   },
   dpadBottom: {
     width: 20,
     height: 40,
-    borderWidth: 2,
-    borderColor: '#fff',
     left: 58,
     bottom: 50,
-    borderTopWidth: 0,
   },
 });
 
