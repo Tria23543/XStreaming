@@ -14,6 +14,7 @@ import {
 import {Text, Appbar, FAB} from 'react-native-paper';
 import {useSelector} from 'react-redux';
 import TitleItem, {getTitleBadge} from '../components/TitleItem';
+import FastImage from 'react-native-fast-image';
 import XcloudApi from '../xCloud';
 import Empty from '../components/Empty';
 import {
@@ -113,6 +114,43 @@ function CloudScreen({navigation, route}) {
     setNewTitles(byIds(sections.newIds));
     setRecentNewTitles(recentByIds(sections.recentIds));
     setHydrated(true);
+
+    // Warm the on-phone image cache for the rows the home screen
+    // shows, so their tile pictures are already on disk — and shown
+    // instantly — on later opens, instead of downloading fresh while
+    // the (already cached) names and badges are on screen.
+    try {
+      const seen = {};
+      const preloadList = [];
+      const pushUrls = list => {
+        (list || []).slice(0, 10).forEach(item => {
+          const url =
+            item.Image_Tile && item.Image_Tile.URL
+              ? 'https:' + item.Image_Tile.URL
+              : '';
+          if (url && !seen[url]) {
+            seen[url] = true;
+            preloadList.push({
+              uri: url,
+              cache: FastImage.cacheControl.immutable,
+            });
+          }
+        });
+      };
+      pushUrls(recentByIds(sections.recentIds));
+      pushUrls(allTitles.filter(item => getTitleBadge(item) !== null));
+      pushUrls(byIds(sections.popular));
+      pushUrls(byIds(sections.newIds));
+      pushUrls(byIds(sections.leaving));
+      pushUrls(byIds(sections.mkb));
+      pushUrls(byIds(sections.touch));
+      pushUrls(_orgTitles);
+      if (preloadList.length > 0) {
+        FastImage.preload(preloadList);
+      }
+    } catch (e) {
+      // Preloading is best-effort only; tiles still load on display.
+    }
   }, []);
 
   React.useEffect(() => {
