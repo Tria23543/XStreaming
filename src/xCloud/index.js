@@ -523,12 +523,17 @@ export default class XcloudApi {
             const _settings = getSettings();
             if (_settings.ipv6) {
               lst.sort((a, b) => {
-                const firstIp = a.ip;
-                const secondIp = b.ip;
+                const firstIsV6 = a.ip.includes(':');
+                const secondIsV6 = b.ip.includes(':');
 
-                return !firstIp.includes(':') && secondIp.includes(':')
-                  ? 1
-                  : -1;
+                // A comparator must return 0 for equal keys and be
+                // antisymmetric; the previous version returned -1
+                // for same-family pairs in both directions, leaving
+                // their order implementation-defined.
+                if (firstIsV6 === secondIsV6) {
+                  return 0;
+                }
+                return firstIsV6 ? -1 : 1;
               });
             }
 
