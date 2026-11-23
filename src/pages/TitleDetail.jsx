@@ -1,5 +1,6 @@
 import React from 'react';
-import {StyleSheet, View, ScrollView, Image} from 'react-native';
+import {StyleSheet, View, ScrollView} from 'react-native';
+import FastImage from 'react-native-fast-image';
 import {Text, Button, HelperText} from 'react-native-paper';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {useTranslation} from 'react-i18next';
@@ -62,16 +63,18 @@ function TitleDetail({navigation, route}) {
       {titleItem && (
         <>
           <ScrollView style={styles.scrollView}>
-            <Image
-              source={{
-                uri:
-                  titleItem.Image_Poster && titleItem.Image_Poster.URL
-                    ? 'https:' + titleItem.Image_Poster.URL
-                    : '',
-              }}
-              resizeMode="cover"
-              style={styles.image}
-            />
+            {titleItem.Image_Poster && titleItem.Image_Poster.URL ? (
+              <FastImage
+                source={{
+                  uri: 'https:' + titleItem.Image_Poster.URL,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                resizeMode={FastImage.resizeMode.cover}
+                style={styles.image}
+              />
+            ) : (
+              <View style={styles.image} />
+            )}
             <View style={styles.textWrap}>
               <Text variant="titleLarge" style={styles.productTitle}>
                 {titleItem.ProductTitle}
