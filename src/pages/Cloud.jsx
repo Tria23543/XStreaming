@@ -43,7 +43,12 @@ function CloudScreen({navigation, route}) {
 
   const [loading, setLoading] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
-  const [isLimited, setIsLimited] = React.useState(false);
+  // The streaming token is minted by the sign-in flow shortly after
+  // the app starts. Until it arrives, "no token yet" must not be
+  // shown as "no XGPU permission": the tab waits (spinner) and only
+  // reports limited once a grace period has passed with no token.
+  const [tokenWaitExpired, setTokenWaitExpired] = React.useState(false);
+
   // True once a COMPLETE catalog is on screen (from the cache or a
   // finished fetch). Section counts are only shown then: during a cold
   // progressive fill the counts would climb chunk by chunk and read as
@@ -72,6 +77,21 @@ function CloudScreen({navigation, route}) {
 
   const currentTitles = React.useRef([]);
   const xCloudToken = streamingTokens.xCloudToken;
+  // Derived, not state: limited means the grace period passed and
+  // there is STILL no streaming token.
+  const isLimited = !xCloudToken && tokenWaitExpired;
+
+  // Grace period for the token: while there is no streaming token,
+  // count 10 seconds before the tab may call itself limited. If the
+  // token arrives first, the wait resets.
+  React.useEffect(() => {
+    if (xCloudToken) {
+      setTokenWaitExpired(false);
+      return undefined;
+    }
+    const waitTimer = setTimeout(() => setTokenWaitExpired(true), 10000);
+    return () => clearTimeout(waitTimer);
+  }, [xCloudToken]);
 
   // Put a complete catalog (cached or freshly fetched) on screen: build
   // the product map, the owned-games list and every curated section from
@@ -158,14 +178,6 @@ function CloudScreen({navigation, route}) {
       setKeyword(route.params.keyword);
       setView('grid');
     }
-    if (!xCloudToken) {
-      setIsLimited(true);
-    } else {
-      // The flag must track reality on every effect run: once the token
-      // arrives, the tab is not limited anymore.
-      setIsLimited(false);
-    }
-
     const handleFetchError = e => {
       log.error('Fetch games failed:', (e && e.message) || e);
       setLoading(false);
@@ -729,6 +741,12 @@ function CloudScreen({navigation, route}) {
               {t('NoXGP')}
             </Text>
           </View>
+        </View>
+      )}
+
+      {!xCloudToken && !tokenWaitExpired && (
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color="#107C10" />
         </View>
       )}
     </>
