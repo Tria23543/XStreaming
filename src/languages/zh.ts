@@ -2,14 +2,11 @@ export default {
   translation: {
     Consoles: '终端',
     Xcloud: '云游戏',
-    Host: '主机',
     Settings: '设置',
     Login: '登录',
     About: '关于',
     Profile: '个人信息',
     Feedback: '交流及赞赏',
-    Close: '关闭',
-    GameMap: '手柄映射',
     'Fetching user info...': '正在获取用户信息...',
     'Fetching consoles...': '正在获取终端信息...',
     'Login successful, refreshing login credentials...':
@@ -26,10 +23,7 @@ export default {
     'Start stream': '开始串流',
     'Power on and start stream': '开机并串流',
     'Start game': '开始云游戏',
-    'Local connect': '本地连接',
-    'Remote connect': '远程连接',
-    'Search game': '搜索游戏',
-    'Toggle Performance': '显示/隐藏性能信息',
+    'Toggle Stats': '显示/隐藏统计',
     'Toggle Virtual Gamepad': '显示/隐藏虚拟手柄',
     'Press Nexus': '按下西瓜键',
     'Long press Nexus': '长按西瓜键',
@@ -56,7 +50,7 @@ export default {
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
       '设置主机串流码率(注意：并不是码率越高越好，最终码率以串流协商为准)',
     'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '设置主机串流码率(注意：并不是码率越高越好，最终码率以串流协商为准)',
+      '设置云游戏串流码率(注意：并不是码率越高越好，最终码率以串流协商为准)',
     Codec: '编码器',
     'If your device supports newer codecs, it can reduce the video bandwidth requirements':
       '如果您的设备支持较新的编解码器，则可以降低视频带宽要求。',
@@ -66,7 +60,7 @@ export default {
       '选择视频流格式，如果你需要画面全屏,请选择拉伸或缩放，如果你的物理显示器不是16:9，会导致画面不协调或展示不全',
     'Aspect ratio': '保持长宽比(16:9)',
     'Native: Use native gamepad kernel to vibrate':
-      'Native: 使用安卓原生手柄内核震动',
+      'Native: 使用原生手柄内核震动',
     "Device: Use Phone/Pad's vibrate":
       'Device: 使用手机或平板机身震动，如需手柄震动，请配合震动重定向使用',
     Stretch: '拉伸',
@@ -75,8 +69,6 @@ export default {
     'If your controller supports vibration, you can set whether it vibrates during the game':
       '如果手柄支持震动，可以设置游戏中是否震动。',
     'Vibration mode': '震动模式',
-    'By default, the WebView kernel is used for vibration. If the controller does not vibrate, try using the native vibration mode':
-      '默认使用webview内核震动，如出现手柄不震动，可以尝试使用native震动模式',
     'Vibration intensity': '震动强度',
     'Config vibration intensity of controller': '调节控制器震动强度',
     'Joystick dead zone': '摇杆中心死区',
@@ -88,8 +80,9 @@ export default {
     'Changing the region allows you to use XGPU services without a proxy':
       '修改地区可以免代理使用XGPU服务',
     'The signaling server is a server for stream negotiation. If the host cannot connect, please try modifying this option':
-      '信令服务器用于串流开始握手阶段，如出现无法连接主机/云游戏的情况，请尝试修改此选项(该选项关闭APP后将重置)',
-    'Prioritize using IPv6 connection': '优先使用Ipv6连接',
+      '信令服务器用于串流开始握手阶段，如出现无法连接主机/云游戏的情况，请尝试修改此选项',
+    'Prioritize using IPv6 connection': '优先使用IPv6连接',
+    IPv6: 'IPv6',
     'Preferred language of game': '游戏偏好语言',
     'Set language of cloud game':
       '设置云游戏语言,该选项会影响云游戏语言及好友、成就语言',
@@ -105,17 +98,12 @@ export default {
     'Signal server': '信令服务器',
     'Virtual gamepad': '虚拟手柄',
     'Always display the virtual gamepad': '始终显示虚拟手柄',
-    'Select gamepad kernel, you can not use virtual gamepad in Web kernel':
+    'Select gamepad kernel; you cannot use the virtual gamepad in the Web kernel':
       '选择手柄驱动内核, 在Web内核下你将无法使用虚拟手柄',
     'Config opacity of virtual gamepad': '设置虚拟按键透明度',
-    'Display settings': '画面设置',
-    'Set parameters such as screen clarity and saturation':
-      '设置画面清晰度、饱和度等参数',
-    'Override native Xbox gamepad support': '覆盖安卓手柄支持',
     'Power on when streaming': '开机并串流',
     power_on_description:
       '选择主机串流时是否开启，默认主机开启睡眠模式后串流时电源灯不会亮，开启此选项后主机会彻底开机，并可能唤醒显示器',
-    'Low Latency Mode': 'WIFI低延迟模式',
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
       '📢自定义虚拟按键位置可能跟实际渲染存在误差，请以实际效果为准',
     'Customize virtual buttons': '自定义虚拟按键',
@@ -128,22 +116,12 @@ export default {
     'Always display the performance panel': '始终显示性能面板',
     'Performance show style': '性能展示样式',
     'Setting performance show style': '设置性能展示(水平/垂直)',
-    'It has been detected that you are using the wired connection mode with the Overwrite Android driver. If the USB connection is disconnected during the game, please exit the game and reconnect the controller; otherwise, the controller buttons will become unresponsive':
-      '检测到你正在使用覆盖安卓驱动有线连接模式，请保证进入游戏前连接USB。如果在游戏过程断开USB连接，可能会导致手柄按键失效',
-    'If you are using an Xbox One/S/X controller and encounter unresponsive buttons when entering the game, please press the home button on the controller first':
-      '如果你正在使用Xbox one/S/X手柄，进入游戏时遇到按键无效，请先按下手柄home键',
-    'After replacing the Android controller driver, controller button mapping is temporarily not supported':
-      '覆盖安卓手柄驱动后暂不支持手柄按键映射',
-    'Short Trigger': '短扳机',
-    'Modify the linear trigger action to a short trigger':
-      '将线性扳机动作修改为短扳机',
     noAllow:
       '你没有权限开始串流或云游戏，请检查登录是否过期并尝试重新登录，如果你正在尝试游玩云游戏，请确保你是XGPU，如果你正在尝试游玩非XGPU游戏，请确保你已经购买此游戏',
-    Horizon: '水平',
+    Horizontal: '水平',
+    'About the author': '关于作者',
+    Hide: '隐藏',
     Vertical: '垂直',
-    'Auto check update': '自动检查更新',
-    'Whether check XStreaming updates automatically':
-      '是否自动检查XStreaming更新',
     BasesSettings: '基础',
     DisplaySettings: '显示',
     GamepadSettings: '手柄及震动',
@@ -165,10 +143,7 @@ export default {
     Friends: '好友',
     Achievements: '成就',
     Auto: '自动',
-    bitrate: '码率',
-    Language: '语言',
     Display: '画面',
-    Gamepad: '手柄',
     Others: '其他',
     RTT: '延时',
     FPS: '帧数',
@@ -176,8 +151,6 @@ export default {
     PL: '丢包',
     Bitrate: '码率',
     DT: '解码',
-    Download: '下载',
-    'Serve & Connection': '服务与连接',
     'Virtual Opacity': '虚拟按键透明度',
     On: '开',
     Off: '关',
@@ -185,7 +158,7 @@ export default {
     Disable: '关',
     Current: '当前值',
     NoData: '这里空空如也~',
-    score: '分数',
+    Score: '分数',
     Default: '默认',
     Edit: '编辑',
     Australia: '澳大利亚',
@@ -203,19 +176,33 @@ export default {
     Delete: '删除',
     Exit: '退出',
     Connected: '连接成功',
-    'Update Warning': '新版本提示',
     byorg: '该游戏属于自购游戏，非XGPU库游戏，如需游玩，请保证已购买此游戏。',
     Native: '原生',
     Device: '设备',
-    Controller: '控制器',
-    Resistance: '阻尼',
-    Trigger: '扳机',
-    'Automatic Trigger': '自动步枪',
     Send: '发送',
-    Sended: '已发送',
     Sent: '已发送',
     Text: '文字',
     'Send text': '发送文字',
+    'Failed to send': '发送失败',
+    Unknown: '未知',
+    'Name already exists': '名称已存在',
+    'Picture settings': '画面设置',
+    'Adjust sharpness, saturation, contrast and brightness':
+      '调整锐度、饱和度、对比度和亮度',
+    'Community and support the author': '社区与支持作者',
+    'No login link available. Please go back and try again.':
+      '没有可用的登录链接，请返回后重试',
+    'No servers available yet. Please log in first, then reopen this page.':
+      '暂无可用的服务器，请先登录，然后重新打开此页面',
+    'Streaming is closed.': '串流已关闭',
+    'The login page failed to load. Please check your connection and try again.':
+      '登录页面加载失败，请检查网络连接后重试',
+    'Streaming is not ready yet. Please go back and try again.':
+      '串流尚未就绪，请返回后重试',
+    'Failed to load games. Please check your connection and try again.':
+      '游戏加载失败，请检查网络连接后重试',
+    'No streaming server is available yet. Please try again.':
+      '暂无可用的串流服务器，请稍后重试',
     stream_warn_text:
       '为了获得更好的游戏体验，建议使用手柄控制器游玩，手柄震动、扳机震动仅在iOS 14及以上生效',
   },

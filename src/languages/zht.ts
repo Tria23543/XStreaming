@@ -2,13 +2,10 @@ export default {
   translation: {
     Consoles: '終端',
     Xcloud: '雲遊戲',
-    Host: '主機',
     Settings: '設置',
     Login: '登錄',
     About: '關於',
     Feedback: '反馈及支持',
-    Close: '關閉',
-    GameMap: '手柄映射',
     Profile: '个人信息',
     'Fetching user info...': '正在獲取用戶信息...',
     'Fetching consoles...': '正在獲取終端信息...',
@@ -24,10 +21,7 @@ export default {
     'Start stream': '開始串流',
     'Power on and start stream': '開機並串流',
     'Start game': '開始雲遊戲',
-    'Local connect': '本地連接',
-    'Remote connect': '遠程連接',
-    'Search game': '搜索遊戲',
-    'Toggle Performance': '顯示/隱藏性能信息',
+    'Toggle Stats': '顯示/隱藏統計',
     'Toggle Virtual Gamepad': '顯示/隱藏虛擬手柄',
     'Press Nexus': '按下西瓜鍵',
     'Long press Nexus': '長按西瓜鍵',
@@ -48,15 +42,15 @@ export default {
     'Set language of XStreaming': '設置XStreaming應用語言',
     Resolution: '分辨率',
     'Set resolution, support 720P/1080P/1080P(HQ)':
-      '設置串流分辨率，支持720P/1080P切換',
+      '設置串流分辨率，支持720P/1080P/1080P(HQ)切換',
     'Host stream bitrate': '主機串流碼率',
     'Cloud stream bitrate': '雲遊戲碼率',
     'Audio bitrate': '声音碼率',
-    'Set the streaming audio bitrate': '設置主機串流声音碼率',
+    'Set the streaming audio bitrate': '設置聲音碼率',
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
       '設置主機串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）',
     'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '設置主機串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）',
+      '設置雲遊戲串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）',
     Codec: '編碼器',
     'If your device supports newer codecs, it can reduce the video bandwidth requirements':
       '如果您的設備支持較新的編解碼器，則可以降低視頻帶寬要求。',
@@ -66,7 +60,7 @@ export default {
       '選擇視頻流格式，如果你需要畫面全屏，請選擇拉伸或縮放，如果你的物理顯示器不是16:9，會導致畫面不協調或展示不全',
     'Aspect ratio': '保持長寬比(16:9)',
     'Native: Use native gamepad kernel to vibrate':
-      'Native: 使用安卓原生手柄內核振動',
+      'Native: 使用原生手柄內核振動',
     "Device: Use Phone/Pad's vibrate":
       'Device: 使用手機或平板機身振動，如需手柄振動，請配合振動重定向使用',
     Stretch: '拉伸',
@@ -75,8 +69,6 @@ export default {
     'If your controller supports vibration, you can set whether it vibrates during the game':
       '如果手柄支持振動，可以設置遊戲中是否振動。',
     'Vibration mode': '振動模式',
-    'By default, the WebView kernel is used for vibration. If the controller does not vibrate, try using the native vibration mode':
-      '預設使用WebView內核振動，如出現手柄不振動，可以嘗試使用native振動模式',
     'Vibration intensity': '振動強度',
     'Config vibration intensity of controller': '調節控制器振動強度',
     'Joystick dead zone': '搖桿死區',
@@ -85,8 +77,12 @@ export default {
     'Changing the region allows you to use XGPU services without a proxy':
       '修改地區可以免代理使用XGPU服務',
     'The signaling server is a server for stream negotiation. If the host cannot connect, please try modifying this option':
-      '信令伺服器用於串流開始握手階段，如出現無法連接主機/雲遊戲的情況，請嘗試修改此選項（該選項關閉APP後將重置）',
+      '信令伺服器用於串流開始握手階段，如出現無法連接主機/雲遊戲的情況，請嘗試修改此選項',
     'Prioritize using IPv6 connection': '優先使用IPv6連接',
+    IPv6: 'IPv6',
+    Horizontal: '水平',
+    'About the author': '關於作者',
+    Hide: '隱藏',
     'Preferred language of game': '遊戲偏好語言',
     'Set language of cloud game':
       '設置雲遊戲語言，該選項會影響雲遊戲語言及好友、成就語言',
@@ -98,7 +94,6 @@ export default {
     'Do you want to logout?': '要登出嗎？',
     'Current user': '當前用戶',
     'Powered on': '開機',
-    'Low Latency Mode': 'WIFI低延迟模式',
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
       '自定义虚拟按键位置可能跟实际渲染存在误差，请以实际效果为准',
     Theme: '主題',
@@ -107,15 +102,9 @@ export default {
     'Signal server': '信令伺服器',
     'Virtual gamepad': '虛擬手柄',
     'Always display the virtual gamepad': '始終顯示虛擬手柄',
-    'Select gamepad kernel, you can not use virtual gamepad in Web kernel':
+    'Select gamepad kernel; you cannot use the virtual gamepad in the Web kernel':
       '選擇手柄驅動內核，在 Web 內核下你將無法使用虛擬手柄',
     'Config opacity of virtual gamepad': '設置虛擬按鍵透明度',
-    'Display settings': '畫面設置',
-    'Set parameters such as screen clarity and saturation':
-      '設置畫面清晰度、飽和度等參數',
-    'Override native Xbox gamepad support': '覆寫原生 Xbox 手把支援',
-    'After replacing the Android controller driver, controller button mapping is temporarily not supported':
-      '覆蓋安卓手柄驅動後暫不支持手柄按鍵映射',
     'Show performance': '显示性能面板',
     'Always display the performance panel': '始终显示性能面板',
     BasesSettings: '基礎',
@@ -136,10 +125,7 @@ export default {
     Achievements: '成就',
     Auto: '自動',
     Custom: '自定義',
-    bitrate: '碼率',
-    Language: '語言',
     Display: '畫面',
-    Gamepad: '手柄',
     Others: '其他',
     RTT: '延遲',
     FPS: '幀數',
@@ -147,8 +133,6 @@ export default {
     PL: '丟包',
     Bitrate: '碼率',
     DT: '解碼',
-    Download: '下載',
-    'Serve & Connection': '服務與連接',
     'Virtual Opacity': '虛擬按鍵透明度',
     On: '開',
     Off: '關',
@@ -156,7 +140,7 @@ export default {
     Disable: '關',
     Current: '當前值',
     NoData: '這裡空空如也~',
-    score: '分數',
+    Score: '分數',
     Default: '預設',
     Australia: '澳大利亞',
     Brazil: '巴西',
@@ -172,14 +156,30 @@ export default {
     Reset: '恢復預設值',
     Exit: '退出',
     byorg: '該遊戲屬於自購遊戲，非XGPU庫遊戲，如需遊玩，請保證已購買此遊戲。',
-    Resistance: '阻尼',
-    Trigger: '扳機',
-    'Automatic Trigger': '自動步槍扳機',
     Send: '发送',
-    Sended: '已发送',
     Sent: '已发送',
     Text: '文字',
     'Send text': '发送文字',
+    'Failed to send': '傳送失敗',
+    Unknown: '未知',
+    'Name already exists': '名稱已存在',
+    'Picture settings': '畫面設置',
+    'Adjust sharpness, saturation, contrast and brightness':
+      '調整銳度、飽和度、對比度和亮度',
+    'Community and support the author': '社群與支持作者',
+    'No login link available. Please go back and try again.':
+      '沒有可用的登入連結，請返回後重試',
+    'No servers available yet. Please log in first, then reopen this page.':
+      '暫無可用的伺服器，請先登入，然後重新開啟此頁面',
+    'Streaming is closed.': '串流已關閉',
+    'The login page failed to load. Please check your connection and try again.':
+      '登入頁面載入失敗，請檢查網絡連接後重試',
+    'Streaming is not ready yet. Please go back and try again.':
+      '串流尚未就緒，請返回後重試',
+    'Failed to load games. Please check your connection and try again.':
+      '遊戲載入失敗，請檢查網絡連接後重試',
+    'No streaming server is available yet. Please try again.':
+      '暫無可用的串流伺服器，請稍後重試',
     stream_warn_text:
       '為了獲得更好的遊戲體驗，建議使用手柄控制器遊玩，手柄震動、扳機震動僅在iOS 14及以上生效',
   },

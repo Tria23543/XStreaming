@@ -2,7 +2,6 @@ export default {
   translation: {
     Consoles: 'Consoles',
     Xcloud: 'Xcloud',
-    Host: 'Host',
     Settings: 'Settings',
     'Fetching user info...': 'Fetching user info...',
     'Fetching consoles...': 'Fetching consoles...',
@@ -17,20 +16,14 @@ export default {
     'Loading...': 'Loading...',
     'Start stream': 'Start stream',
     'Power on and start stream': 'Power on and start stream',
-    'Local connect': 'Local connect',
-    'Remote connect': 'Remote connect',
     'Disconnect and power off': 'Disconnect and power off',
     NoConsoles:
       'No consoles found on your account. If you do have an Xbox console then make sure that remote playing is enabled and that the console is visible in the official Xbox App.',
     NoXGP:
       'You have not activated XGPU or do not have XGPU permission in your region. Please check your account permissions or change the region in settings and try again.',
-    'Recent Games': 'Recent Games',
     'Recently added': 'Recently added',
-    'All Games': 'All Games',
     'Set language of XStreaming': 'Set language of XStreaming',
     Resolution: 'Resolution',
-    'Set resolution, support 720P/1080P/1080P(HQ).':
-      'Set resolution, support 720P/1080P/1080P(HQ).',
     'Host stream bitrate': 'Host stream bitrate',
     'Cloud stream bitrate': 'Cloud stream bitrate',
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
@@ -38,14 +31,8 @@ export default {
     'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
       'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)',
     Codec: 'Codec',
-    'If your device supports newer codecs, it can reduce the video bandwidth requirements.':
-      'If your device supports newer codecs, it can reduce the video bandwidth requirements.',
     Vibration: 'Vibration',
-    'If your controller supports vibration, you can set whether it vibrates during the game.':
-      'If your controller supports vibration, you can set whether it vibrates during the game.',
     'Vibration mode': 'Vibration mode',
-    'By default, the WebView kernel is used for vibration. If the controller does not vibrate, try using the native vibration mode':
-      'By default, the WebView kernel is used for vibration. If the controller does not vibrate, try using the native vibration mode',
     'Joystick dead zone': 'Joystick dead zone',
     'Config joystick dead zone': 'Config joystick dead zone',
     'Set region': 'Set region',
@@ -53,7 +40,6 @@ export default {
       'Changing the region allows you to use XGPU services without a proxy',
     'Preferred language of game': 'Preferred language of game',
     'Set language of cloud game': 'Set language of cloud game',
-    'Override native Xbox gamepad support': 'Override native gamepad support',
     noAllow:
       'Permission denied for streaming or cloud gaming. Please verify your login status and try logging in again. For cloud gaming, ensure you have an active XGPU subscription. For non-XGPU games, verify that you own the game',
     power_on_description:
@@ -69,12 +55,14 @@ export default {
     XchomeSettings: 'Console Streaming',
     Auto: 'Auto',
     Custom: 'Custom',
-    bitrate: 'bitrate',
     On: 'On',
     Off: 'Off',
+    Horizontal: 'Horizontal',
+    'About the author': 'About the author',
+    Hide: 'Hide',
+    IPv6: 'IPv6',
     Current: 'Current',
     NoData: 'No data',
-    Gamerscore: 'Gamerscore',
     Default: 'Default',
     Australia: 'Australia',
     Brazil: 'Brazil',
