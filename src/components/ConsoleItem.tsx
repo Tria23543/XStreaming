@@ -35,16 +35,19 @@ const ConsoleItem = (props: any) => {
               <Text style={[styles.yellow, styles.textCenter]}>
                 {t('Standby')}
               </Text>
-            ) : (
+            ) : consoleItem.powerState === 'Off' ? (
               <Text style={[styles.red, styles.textCenter]}>
-                {consoleItem.powerState}
+                {t('Off')}
               </Text>
+            ) : (
+              <Text style={[styles.textCenter]}>{t('Unknown')}</Text>
             )}
           </View>
         </View>
         <View style={styles.footer}>
           {settings.power_on &&
-          consoleItem.powerState === 'ConnectedStandby' ? (
+          (consoleItem.powerState === 'ConnectedStandby' ||
+            consoleItem.powerState === 'Off') ? (
             <Button
               mode="outlined"
               labelStyle={{marginHorizontal: 0}}

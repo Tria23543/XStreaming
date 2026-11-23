@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Image,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
+import {StyleSheet, View, Image, ActivityIndicator} from 'react-native';
 import {Text, Icon, ProgressBar} from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -22,23 +16,30 @@ const ArchivementItem: React.FC<Props> = ({item}) => {
   } else if (
     item.progressState === 'InProgress' &&
     item.progression &&
-    item.progression.requirements
+    item.progression.requirements &&
+    item.progression.requirements[0]
   ) {
-    progress =
-      item.progression.requirements[0].current /
-      item.progression.requirements[0].target;
+    const current = Number(item.progression.requirements[0].current) || 0;
+    const target = Number(item.progression.requirements[0].target) || 0;
+    progress = target > 0 ? current / target : 0;
   }
+  if (!isFinite(progress) || isNaN(progress)) {
+    progress = 0;
+  }
+  progress = Math.min(Math.max(progress, 0), 1);
 
-  const sorce = (item.rewards && item.rewards[0] && item.rewards[0].value) || 0;
+  const score = (item.rewards && item.rewards[0] && item.rewards[0].value) || 0;
+  const imageUrl =
+    (item.mediaAssets && item.mediaAssets[0] && item.mediaAssets[0].url) || '';
 
   return (
-    <Pressable>
+    <View>
       <View style={styles.card}>
-        {loading && (
+        {loading && imageUrl !== '' && (
           <ActivityIndicator
             style={styles.loadingIndicator}
             size="large"
-            color="#0000ff"
+            color="#107C10"
           />
         )}
         {item.progressState !== 'Achieved' && (
@@ -49,10 +50,11 @@ const ArchivementItem: React.FC<Props> = ({item}) => {
 
         <Image
           source={{
-            uri: item.mediaAssets[0].url,
+            uri: imageUrl,
           }}
           resizeMode={'cover'}
           onLoad={() => setLoading(false)}
+          onError={() => setLoading(false)}
           style={styles.image}
         />
         <View style={styles.descriptionContainer}>
@@ -67,11 +69,11 @@ const ArchivementItem: React.FC<Props> = ({item}) => {
           </Text>
         </View>
         <View style={styles.footer}>
-          {sorce > 0 && (
+          {score > 0 && (
             <View style={styles.score}>
               <Icon source="alpha-g-circle-outline" color={'#fff'} size={15} />
               <Text variant="labelSmall" style={{marginLeft: 5}}>
-                {sorce}
+                {score}
               </Text>
             </View>
           )}
@@ -83,7 +85,7 @@ const ArchivementItem: React.FC<Props> = ({item}) => {
           <ProgressBar progress={progress} />
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 };
 

@@ -20,10 +20,14 @@ const PerfPanel: React.FC<Props> = ({performance = {}}) => {
 
   React.useEffect(() => {
     const getBattery = () => {
+      if (!BatteryModule?.getBatteryLevel) {
+        return;
+      }
       BatteryModule.getBatteryLevel()
         .then((level: any) => {
-          if (level) {
-            setBattery(Number(level));
+          const num = Number(level);
+          if (level !== null && level !== undefined && !isNaN(num)) {
+            setBattery(num);
           } else {
             setBattery(-1);
           }
@@ -43,11 +47,22 @@ const PerfPanel: React.FC<Props> = ({performance = {}}) => {
   }, []);
 
   const renderBattery = (level: number) => {
+    if (level < 0) {
+      return '🔋: --';
+    }
     if (level < 20) {
       return `🪫: ${level}%`;
     } else {
       return `🔋: ${level}%`;
     }
+  };
+
+  // Show real values (including a genuine 0); only missing data shows '--'.
+  const showVal = (v: any) => {
+    if (v === undefined || v === null || v === '') {
+      return '--';
+    }
+    return v;
   };
 
   let resolutionText = '';
@@ -63,37 +78,37 @@ const PerfPanel: React.FC<Props> = ({performance = {}}) => {
       <View style={isHorizon ? styles.wrapperH : styles.wrapperV}>
         <View>
           <Text style={styles.text}>
-            {resolutionText || '-1'} {isHorizon ? '| ' : ''}{' '}
+            {resolutionText || '--'} {isHorizon ? '| ' : ''}{' '}
           </Text>
         </View>
         <View>
           <Text style={styles.text}>
-            {t('RTT')}: {performance.rtt || '-1'} {isHorizon ? '| ' : ''}
+            {t('RTT')}: {showVal(performance.rtt)} {isHorizon ? '| ' : ''}
           </Text>
         </View>
         <View>
           <Text style={styles.text}>
-            {t('FPS')}: {performance.fps || '-1'} {isHorizon ? '| ' : ''}
+            {t('FPS')}: {showVal(performance.fps)} {isHorizon ? '| ' : ''}
           </Text>
         </View>
         <View>
           <Text style={styles.text}>
-            {t('FD')}: {performance.fl || '-1'} {isHorizon ? '| ' : ''}
+            {t('FD')}: {showVal(performance.fl)} {isHorizon ? '| ' : ''}
           </Text>
         </View>
         <View>
           <Text style={styles.text}>
-            {t('PL')}: {performance.pl || '-1'} {isHorizon ? '| ' : ''}
+            {t('PL')}: {showVal(performance.pl)} {isHorizon ? '| ' : ''}
           </Text>
         </View>
         <View>
           <Text style={styles.text}>
-            {t('Bitrate')}: {performance.br || '-1'} {isHorizon ? '| ' : ''}
+            {t('Bitrate')}: {showVal(performance.br)} {isHorizon ? '| ' : ''}
           </Text>
         </View>
         <View>
           <Text style={styles.text}>
-            {t('DT')}: {performance.decode || '-1'}
+            {t('DT')}: {showVal(performance.decode)}
             {isHorizon ? ' | ' : ''}
           </Text>
         </View>

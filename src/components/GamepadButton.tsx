@@ -24,6 +24,11 @@ const GamepadButton: React.FC<Props> = ({
     .onEnd(() => {
       onPressOut && onPressOut(name);
     })
+    .onFinalize(() => {
+      // Also fires when the gesture is cancelled, so a button can never
+      // stay logically stuck down.
+      onPressOut && onPressOut(name);
+    })
     .minDuration(16);
 
   return (

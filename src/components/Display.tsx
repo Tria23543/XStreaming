@@ -20,11 +20,18 @@ const Display: React.FC<Props> = ({options, onChange}) => {
   const [innerOptions, setInnerOptions] = React.useState<any>(defaultValue);
 
   React.useEffect(() => {
-    try {
-      setInnerOptions(JSON.parse(JSON.stringify(options)));
-    } catch (e) {
-      setInnerOptions(defaultValue);
+    // Merge over the defaults so a missing/partial options object never
+    // leaves the sliders blank.
+    const merged = {...defaultValue};
+    if (options) {
+      Object.keys(defaultValue).forEach(key => {
+        const v = (options as any)[key];
+        if (typeof v === 'number' && !isNaN(v)) {
+          (merged as any)[key] = v;
+        }
+      });
     }
+    setInnerOptions(merged);
   }, [options]);
 
   const handleValChange = (key: string, value: string | number) => {

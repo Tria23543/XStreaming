@@ -126,8 +126,8 @@ const CustomVirtualGamepad: React.FC<Props> = ({
         name: 'Dpad',
         x: 20,
         y: height - 170,
-        width: 60,
-        height: 60,
+        width: 100,
+        height: 100,
         scale: 1,
         show: true,
       },
@@ -177,8 +177,8 @@ const CustomVirtualGamepad: React.FC<Props> = ({
               scale={button.scale}
               style={{
                 opacity: opacity,
-                left: button.x - 15,
-                top: button.y + 100,
+                left: button.x,
+                top: button.y,
               }}
               onPressIn={handlePressIn}
               onPressOut={handlePressOut}
