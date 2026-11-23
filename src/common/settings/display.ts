@@ -63,7 +63,7 @@ const display = [
       'If your device supports newer codecs, it can reduce the video bandwidth requirements',
     ),
     data: [
-      {value: '', text: 'Auto'},
+      {value: '', text: t('Auto')},
       // {value: 'video/AV1', text: 'AV1'},
       // {value: 'video/VP9', text: 'VP9'},
       {value: 'video/H265', text: 'H265'},
@@ -93,7 +93,7 @@ const display = [
     title: t('Performance show style'),
     description: t('Setting performance show style'),
     data: [
-      {value: true, text: t('Horizon')},
+      {value: true, text: t('Horizontal')},
       {value: false, text: t('Vertical')},
     ],
   },

@@ -16,7 +16,7 @@ const xhome = [
   {
     name: 'ipv6',
     type: 'radio',
-    title: t('Ipv6'),
+    title: t('IPv6'),
     description: t('Prioritize using IPv6 connection'),
     data: [
       {value: true, text: t('Enable')},
@@ -26,7 +26,7 @@ const xhome = [
   {
     name: 'signaling_home',
     type: 'radio',
-    title: t('Signal server') + '(xHome)',
+    title: t('Signal server') + ' (xHome)',
     description: t(
       'The signaling server is a server for stream negotiation. If the host cannot connect, please try modifying this option',
     ),

@@ -31,7 +31,7 @@ const bases = [
     title: t('Preferred language of game'),
     description: t('Set language of cloud game'),
     data: [
-      {value: '', text: 'Default'},
+      {value: '', text: t('Default')},
       {value: 'ar-SA', text: 'Arabic (Saudi Arabia)'},
       {value: 'cs-CZ', text: 'Czech'},
       {value: 'da-DK', text: 'Danish'},

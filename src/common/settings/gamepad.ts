@@ -8,7 +8,7 @@ const gamepad = [
     type: 'radio',
     title: t('Gamepad kernel'),
     description: t(
-      'Select gamepad kernel, you can not use virtual gamepad in Web kernel',
+      'Select gamepad kernel; you cannot use the virtual gamepad in the Web kernel',
     ),
     data: [
       {value: 'Native', text: 'Native'},
