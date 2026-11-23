@@ -1,4 +1,11 @@
 import axios from 'axios';
+
+// Every request this module makes carries a hard timeout.
+// Axios's default is 0 (never), and a connection that stalls
+// without erroring would otherwise leave sign-in checks,
+// session starts, state polls and catalog fetches unsettled
+// forever. (A per-call timeout, where one exists, still wins.)
+const http = axios.create({timeout: 15000});
 import {getSettings} from '../store/settingStore';
 import {debugFactory} from '../utils/debug';
 import {Address6} from 'ip-address';
@@ -103,7 +110,7 @@ export default class XcloudApi {
         fallbackRegionNames: [],
       });
 
-      axios
+      http
         .post(`${this.host}/v5/sessions/${this.type}/play`, body, {
           headers: {
             'Content-Type': 'application/json',
@@ -122,7 +129,7 @@ export default class XcloudApi {
 
             this.waitState()
               .then(() => {
-                axios
+                http
                   .get(
                     `${this.host}/v5/sessions/${this.type}/${this.sessionId}/configuration`,
                     {
@@ -168,7 +175,7 @@ export default class XcloudApi {
   // Check host streaming status is ready or not
   waitState(attempts = 0) {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .get(`${this.host}/v5/sessions/${this.type}/${this.sessionId}/state`, {
           headers: {
             'Content-Type': 'application/json',
@@ -305,7 +312,7 @@ export default class XcloudApi {
           },
         },
       });
-      axios
+      http
         .post(
           `${this.host}/v5/sessions/${this.type}/${this.sessionId}/sdp`,
           body,
@@ -319,7 +326,7 @@ export default class XcloudApi {
         )
         .then(() => {
           // The first post for SDP did not return, so a GET request for SDP response needs to be initiated.
-          axios
+          http
             .get(
               `${this.host}/v5/sessions/${this.type}/${this.sessionId}/sdp`,
               {
@@ -355,7 +362,7 @@ export default class XcloudApi {
                     );
                     return;
                   }
-                  axios
+                  http
                     .get(
                       `${this.host}/v5/sessions/${this.type}/${this.sessionId}/sdp`,
                       {
@@ -391,7 +398,7 @@ export default class XcloudApi {
 
   checkIceResponse(attempts = 0) {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .get(`${this.host}/v5/sessions/${this.type}/${this.sessionId}/ice`, {
           headers: {
             'Content-Type': 'application/json',
@@ -453,6 +460,15 @@ export default class XcloudApi {
                   const address = new Address6(candidateAddress[4]);
                   teredo = address.inspectTeredo();
                 } catch (e) {
+                  continue;
+                }
+                // The dereferences below sit outside the try: a
+                // candidate that merely starts with 2001 is not
+                // necessarily Teredo (2001:0000::/32), and inspect
+                // can return nothing for those — skip the candidate
+                // instead of throwing into the outer catch and
+                // failing the whole ICE exchange.
+                if (!teredo || !teredo.client4) {
                   continue;
                 }
 
@@ -562,7 +578,7 @@ export default class XcloudApi {
         messageType: 'iceCandidate',
         candidate: iceCandidates,
       };
-      axios
+      http
         .post(
           `${this.host}/v5/sessions/${this.type}/${this.sessionId}/ice`,
           JSON.stringify(postData),
@@ -591,7 +607,7 @@ export default class XcloudApi {
 
   sendMSALAuth(userToken) {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .post(
           `${this.host}/v5/sessions/${this.type}/${this.sessionId}/connect`,
           {
@@ -615,7 +631,7 @@ export default class XcloudApi {
 
   sendKeepalive() {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .post(
           `${this.host}/v5/sessions/${this.type}/${this.sessionId}/keepalive`,
           {},
@@ -648,7 +664,7 @@ export default class XcloudApi {
         resolve();
         return;
       }
-      axios
+      http
         .delete(`${this.host}/v5/sessions/${this.type}/${this.sessionId}`, {
           headers: {
             'Content-Type': 'application/json',
@@ -656,7 +672,10 @@ export default class XcloudApi {
           },
         })
         .then(res => {
-          log.info('Stream stop:', res);
+          // Status only: the whole response object carries the
+          // request config — including the live Authorization
+          // header — and must not reach the console.
+          log.info('Stream stop status:', res && res.status);
           resolve(res.data);
         })
         .catch(e => {
@@ -667,7 +686,7 @@ export default class XcloudApi {
 
   getActiveSessions() {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .get(`${this.host}/v5/sessions/${this.type}/active`, {
           headers: {
             'Content-Type': 'application/json',
@@ -687,7 +706,7 @@ export default class XcloudApi {
   getOfficialTitles() {
     return new Promise(resolve => {
       let officialTitles = [];
-      axios
+      http
         .get('https://cdn.jsdelivr.net/gh/Geocld/XStreaming@main/titles.json', {
           // Axios timeouts are milliseconds: 30ms made this fetch fail
           // every time, silently disabling the official-titles merge.
@@ -746,7 +765,7 @@ export default class XcloudApi {
           let lastError = null;
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
-              const res = await axios.post(
+              const res = await http.post(
                 'https://catalog.gamepass.com/v3/products?market=US&language=en-US&hydration=RemoteLowJade0',
                 {
                   Products: chunk,
@@ -826,7 +845,7 @@ export default class XcloudApi {
   // Get all games of XGPU
   getTitles() {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .get(`${this.host}/v2/titles`, {
           headers: {
             'Content-Type': 'application/json',
@@ -846,7 +865,7 @@ export default class XcloudApi {
   // Get recently add games of XGPU
   getNewTitles() {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .get(
           'https://catalog.gamepass.com/sigls/v2?id=f13cf6b4-57e6-4459-89df-6aec18cf0538&market=US&language=en-US',
         )
@@ -854,7 +873,10 @@ export default class XcloudApi {
           resolve(res.data);
         })
         .catch(e => {
-          resolve([]);
+          // Reject, never resolve-empty: the Cloud screen's
+          // per-section fallback can only tell "failed" from
+          // "genuinely empty" if a failure rejects.
+          reject(e);
         });
     });
   }
@@ -863,7 +885,7 @@ export default class XcloudApi {
   // uses for Popular, Leaving soon, Mouse and keyboard, ...)
   getSiglTitles(siglId) {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .get(
           'https://catalog.gamepass.com/sigls/v2?id=' +
             siglId +
@@ -873,7 +895,10 @@ export default class XcloudApi {
           resolve(res.data);
         })
         .catch(e => {
-          resolve([]);
+          // Reject, never resolve-empty: the Cloud screen's
+          // per-section fallback can only tell "failed" from
+          // "genuinely empty" if a failure rejects.
+          reject(e);
         });
     });
   }
@@ -881,7 +906,7 @@ export default class XcloudApi {
   // Get recently play games of user
   getRecentTitles() {
     return new Promise((resolve, reject) => {
-      axios
+      http
         .get(`${this.host}/v2/titles/mru?mr=25`, {
           headers: {
             'Content-Type': 'application/json',
@@ -893,7 +918,10 @@ export default class XcloudApi {
           resolve(res.data);
         })
         .catch(e => {
-          resolve([]);
+          // Reject, never resolve-empty: the Cloud screen's
+          // per-section fallback can only tell "failed" from
+          // "genuinely empty" if a failure rejects.
+          reject(e);
         });
     });
   }
