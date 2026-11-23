@@ -5,6 +5,7 @@ type Props = {
   style: any;
   scale?: number;
   size?: number;
+  height?: number;
   onPressIn: any;
   onPressOut: any;
 };
@@ -13,6 +14,7 @@ const Dpad: React.FC<Props> = ({
   style = {},
   scale = 1,
   size = 100,
+  height,
   onPressIn,
   onPressOut,
 }) => {
@@ -32,7 +34,12 @@ const Dpad: React.FC<Props> = ({
         // a centre-anchored transform made the in-game pad sit up-left
         // of where the layout editor's top-left-anchored preview showed
         // it. Percentage geometry below scales with the container.
-        {width: size * scale, height: size * scale},
+        // Layouts store width and height separately; the height
+        // used to be ignored and the pad always rendered square.
+        {
+          width: size * scale,
+          height: (height !== undefined ? height : size) * scale,
+        },
         style,
       ]}>
       <TouchableOpacity
