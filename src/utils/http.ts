@@ -11,13 +11,14 @@ export default class Http {
       axios
         .get(`https://${host}${path}`, {
           headers: hostHeaders,
+          timeout: 15000,
         })
         .then((res: any) => {
           if (res.status === 200 || res.status === 204) {
             resolve(res.data);
           } else {
             resolve({
-              statuscode: res.code,
+              statuscode: res.status,
               headers: res.headers,
               body: res.data,
               message: 'Error fetching ' + host + path,
@@ -44,13 +45,14 @@ export default class Http {
       axios
         .post(`https://${host}${path}`, data, {
           headers: hostHeaders,
+          timeout: 15000,
         })
         .then((res: any) => {
           if (res.status === 200 || res.status === 202) {
             resolve(res.data);
           } else {
             resolve({
-              statuscode: res.code,
+              statuscode: res.status,
               headers: res.headers,
               body: res.data,
               message: 'Error fetching ' + host + path,
