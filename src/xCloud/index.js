@@ -138,6 +138,11 @@ export default class XcloudApi {
                       JSON.stringify(result.data),
                     );
                     resolve(result.data);
+                  })
+                  .catch(error => {
+                    // Without this the outer promise never settles when
+                    // the configuration request fails.
+                    reject(error);
                   });
               })
               .catch(error => {
@@ -153,7 +158,7 @@ export default class XcloudApi {
   }
 
   // Check host streaming status is ready or not
-  waitState() {
+  waitState(attempts = 0) {
     return new Promise((resolve, reject) => {
       axios
         .get(`${this.host}/v5/sessions/${this.type}/${this.sessionId}/state`, {
@@ -177,12 +182,17 @@ export default class XcloudApi {
                 // Canceled
                 // reject('Streaming canceled');
                 reject('');
+              } else if (attempts >= 180) {
+                // ~3 minutes of 1s polls: give up instead of looping
+                // forever on a session that will never become ready.
+                reject(
+                  'Streaming failed: timed out waiting for the session to become ready',
+                );
               } else {
                 setTimeout(() => {
                   // Continue
-                  this.waitState()
+                  this.waitState(attempts + 1)
                     .then(state => {
-                      console.log('inner waitState state:', state);
                       resolve(state);
                     })
                     .catch(error => {
@@ -192,23 +202,38 @@ export default class XcloudApi {
               }
               break;
             case 'ReadyToConnect':
+              if (this.isStoped) {
+                reject('');
+                break;
+              }
               // Do MSAL Auth
               this.authentication._xal
                 .getMsalToken(this.authentication._tokenStore)
                 .then(msalToken => {
-                  this.sendMSALAuth(msalToken.data.lpt).then(() => {
-                    this.waitState()
-                      .then(state => {
-                        resolve(state);
-                      })
-                      .catch(error => {
-                        reject(error);
-                      });
-                  });
+                  this.sendMSALAuth(msalToken.data.lpt)
+                    .then(() => {
+                      this.waitState(attempts + 1)
+                        .then(state => {
+                          resolve(state);
+                        })
+                        .catch(error => {
+                          reject(error);
+                        });
+                    })
+                    .catch(error => {
+                      reject(error);
+                    });
+                })
+                .catch(error => {
+                  reject(error);
                 });
               break;
             case 'Failed':
-              reject('Streaming failed: ' + _state.errorDetails.message);
+              reject(
+                'Streaming failed: ' +
+                  ((_state.errorDetails && _state.errorDetails.message) ||
+                    'unknown error'),
+              );
               break;
             default:
               log.info('unknown state:', _state);
@@ -315,12 +340,18 @@ export default class XcloudApi {
                 }, 1000);
               }
               // resolve(sdpResponse.exchangeResponse);
+            })
+            .catch(e => {
+              reject(e);
             });
+        })
+        .catch(e => {
+          reject(e);
         });
     });
   }
 
-  checkIceResponse() {
+  checkIceResponse(attempts = 0) {
     return new Promise((resolve, reject) => {
       axios
         .get(`${this.host}/v5/sessions/${this.type}/${this.sessionId}/ice`, {
@@ -334,9 +365,24 @@ export default class XcloudApi {
           log.info('[checkIceResponse] res:', iceResult);
 
           if (iceResult === '') {
+            if (this.isStoped) {
+              // The stream was stopped: end the polling here. The promise
+              // is deliberately left unsettled — the caller has already
+              // torn the stream down, and settling either way would
+              // surface as a spurious result/error after exit.
+              return;
+            }
+            if (attempts >= 120) {
+              reject(
+                new Error(
+                  '[checkIceResponse] timed out waiting for ICE candidates',
+                ),
+              );
+              return;
+            }
             setTimeout(() => {
               // Continue check
-              this.checkIceResponse()
+              this.checkIceResponse(attempts + 1)
                 .then(state => {
                   resolve(state);
                 })
@@ -501,6 +547,9 @@ export default class XcloudApi {
         )
         .then(res => {
           resolve();
+        })
+        .catch(e => {
+          reject(e);
         });
     });
   }
@@ -522,7 +571,13 @@ export default class XcloudApi {
           resolve(res.data);
         })
         .catch(e => {
-          reject('[sendKeepalive] error:', e);
+          // reject() takes a single argument; embed the cause in an Error
+          // instead of dropping it.
+          reject(
+            new Error(
+              '[sendKeepalive] error: ' + ((e && e.message) || String(e)),
+            ),
+          );
         });
     });
   }
@@ -575,12 +630,13 @@ export default class XcloudApi {
       let officialTitles = [];
       axios
         .get('https://cdn.jsdelivr.net/gh/Geocld/XStreaming@main/titles.json', {
-          timeout: 30,
+          // Axios timeouts are milliseconds: 30ms made this fetch fail
+          // every time, silently disabling the official-titles merge.
+          timeout: 30000,
         })
         .then(res => {
           if (res.status === 200) {
             officialTitles = res.data.Products;
-            console.log('officialTitles:', officialTitles);
           }
           resolve(officialTitles);
         })
