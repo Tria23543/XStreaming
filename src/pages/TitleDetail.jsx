@@ -12,7 +12,7 @@ import Spinner from 'react-native-loading-spinner-overlay';
 import {getSettings} from '../store/settingStore';
 import {useTranslation} from 'react-i18next';
 import {debugFactory} from '../utils/debug';
-import {getTitleBadge} from '../components/TitleItem';
+import {getTitleBadge, isEntitled} from '../components/TitleItem';
 
 const {UsbRumbleManager} = NativeModules;
 
@@ -159,12 +159,12 @@ function TitleDetail({navigation, route}) {
                   {t('Stream your own game')}
                 </Text>
               )}
-              {badge === null && titleItem.details && (
+              {badge === 'FREE' && (
                 <Text variant="titleMedium" style={styles.gpText}>
                   {t('Free to play')}
                 </Text>
               )}
-              {badge === null && !titleItem.details && (
+              {badge === null && (
                 <Text variant="titleMedium" style={styles.gpText}>
                   {t('Stream your own game')} · {t('Needs to be purchased')}
                 </Text>
@@ -188,12 +188,18 @@ function TitleDetail({navigation, route}) {
           </ScrollView>
 
           <View style={styles.buttonWrap}>
-            <Button
-              mode="contained"
-              style={styles.button}
-              onPress={handleStartGame}>
-              &nbsp;{t('Start game')} &nbsp;
-            </Button>
+            {isEntitled(titleItem) ? (
+              <Button
+                mode="contained"
+                style={styles.button}
+                onPress={handleStartGame}>
+                &nbsp;{t('Start game')} &nbsp;
+              </Button>
+            ) : (
+              <Button mode="contained" style={styles.button} disabled={true}>
+                {t('Needs to be purchased')}
+              </Button>
+            )}
             <Button
               mode="outlined"
               style={styles.button}
