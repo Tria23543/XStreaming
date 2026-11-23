@@ -97,8 +97,7 @@ export default {
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
       '自定義虛擬按鍵位置可能跟實際渲染存在誤差，請以實際效果為準',
     Theme: '主題',
-    'Set the app theme to take effect on the next launch':
-      '設置APP主題，下次啟動生效',
+    'Set the app theme, takes effect immediately': '設置APP主題，立即生效',
     'Signal server': '信令伺服器',
     'Virtual gamepad': '虛擬手柄',
     'Always display the virtual gamepad': '始終顯示虛擬手柄',
