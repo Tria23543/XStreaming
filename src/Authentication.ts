@@ -1,6 +1,10 @@
 import Xal from './xal';
 import TokenStore from './xal/tokenstore';
 import { debugFactory } from './utils/debug';
+import {
+  setLastAuthError,
+  clearLastAuthError,
+} from './utils/authError';
 
 const log = debugFactory('Authentication.ts');
 
@@ -37,6 +41,10 @@ export default class Authentication {
       // A superseded flow finished late: its outcome no longer counts.
       return;
     }
+    // Keep the failure readable in the UI (the Cloud tab shows it):
+    // a sign-in that fails silently cannot be told apart from one
+    // that never ran.
+    setLastAuthError(error);
     this._isAuthenticating = false;
     this._flowRunning = 0;
     this._inflightCheck = null;
@@ -53,6 +61,7 @@ export default class Authentication {
     if (generation !== undefined && generation !== this._flowGeneration) {
       return;
     }
+    clearLastAuthError();
     this._isAuthenticating = false;
     this._flowRunning = 0;
     this._inflightCheck = null;
@@ -259,7 +268,9 @@ export default class Authentication {
             '[startAuthflow] Login cancelled or returned no auth code; keeping any saved login.',
           );
           this._notifyFailed(
-            new Error('Login failed or cancelled'),
+            new Error(
+              'Sign-in returned no authorisation code (cancelled at Microsoft, an error reply, or a state mismatch)',
+            ),
             generation,
           );
         }
