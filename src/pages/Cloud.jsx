@@ -26,6 +26,7 @@ import {
   projectTitle,
 } from '../store/catalogCache';
 import {debugFactory} from '../utils/debug';
+import {getLastAuthError} from '../utils/authError';
 import {useTranslation} from 'react-i18next';
 
 const log = debugFactory('CloudScreen');
@@ -1161,6 +1162,17 @@ function CloudScreen({navigation}) {
               {t('NoXGP')}
             </Text>
           </View>
+          {getLastAuthError() ? (
+            <Text
+              style={{
+                marginTop: 12,
+                textAlign: 'center',
+                opacity: 0.7,
+                paddingHorizontal: 24,
+              }}>
+              {getLastAuthError()}
+            </Text>
+          ) : null}
           <Button
             mode="contained"
             onPress={retryAuth}
