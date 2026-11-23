@@ -9,11 +9,11 @@ export default class DeviceToken extends Token {
   }
 
   getSecondsValid() {
-    return this.calculateSecondsLeft(new Date(this.data.NotAfter));
+    return this.calculateSecondsLeft(new Date(this.data?.NotAfter));
   }
 
   isValid() {
-    if (this.calculateSecondsLeft(new Date(this.data.NotAfter)) <= 0) {
+    if (this.calculateSecondsLeft(new Date(this.data?.NotAfter)) <= 0) {
       return false;
     }
 

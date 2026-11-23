@@ -13,12 +13,12 @@ export default class UserToken extends Token {
   // NaN — and NaN comparisons would read a dead token as valid.
 
   getSecondsValid() {
-    return this.calculateSecondsLeft(new Date(this.data.expires_on));
+    return this.calculateSecondsLeft(new Date(this.data?.expires_on));
   }
 
   isValid() {
     const secondsLeft = this.calculateSecondsLeft(
-      new Date(this.data.expires_on),
+      new Date(this.data?.expires_on),
     );
     return secondsLeft > 0;
   }
