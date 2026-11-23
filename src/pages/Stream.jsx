@@ -634,7 +634,7 @@ function StreamScreen({navigation, route}) {
       leveledX = leveledX.toFixed(2);
     }
     if (typeof leveledY === 'string') {
-      leveledX = leveledY.toFixed(2);
+      leveledY = leveledY.toFixed(2);
     }
 
     if (id === 'right') {
