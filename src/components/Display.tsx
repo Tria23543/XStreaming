@@ -34,12 +34,20 @@ const Display: React.FC<Props> = ({options, onChange}) => {
     setInnerOptions(merged);
   }, [options]);
 
+  // Always build a new object: mutating state in place and passing the
+  // same reference to onChange lets callers persist a stale snapshot.
   const handleValChange = (key: string, value: string | number) => {
-    innerOptions[key] = value;
-    setInnerOptions(() => ({
-      ...innerOptions,
-    }));
-    onChange && onChange(innerOptions);
+    const next = {...innerOptions, [key]: value};
+    setInnerOptions(next);
+    onChange && onChange(next);
+  };
+
+  const step = (key: string, delta: number, min: number, max: number) => {
+    const current = innerOptions[key];
+    const next = current + delta;
+    if (next >= min && next <= max) {
+      handleValChange(key, next);
+    }
   };
 
   return (
@@ -53,33 +61,17 @@ const Display: React.FC<Props> = ({options, onChange}) => {
             <IconButton
               icon="minus"
               size={20}
-              onPress={() => {
-                if (innerOptions.sharpness > 0) {
-                  innerOptions.sharpness = innerOptions.sharpness - 1;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('sharpness', -1, 0, 10)}
             />
             <Text variant="titleMedium">
               {innerOptions.sharpness === 0
-                ? t('Close')
+                ? t('Off')
                 : innerOptions.sharpness}
             </Text>
             <IconButton
               icon="plus"
               size={20}
-              onPress={() => {
-                if (innerOptions.sharpness < 10) {
-                  innerOptions.sharpness = innerOptions.sharpness + 1;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('sharpness', 1, 0, 10)}
             />
           </View>
         </View>
@@ -107,29 +99,13 @@ const Display: React.FC<Props> = ({options, onChange}) => {
             <IconButton
               icon="minus"
               size={20}
-              onPress={() => {
-                if (innerOptions.saturation > 50) {
-                  innerOptions.saturation = innerOptions.saturation - 10;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('saturation', -10, 50, 150)}
             />
             <Text variant="titleMedium">{innerOptions.saturation}%</Text>
             <IconButton
               icon="plus"
               size={20}
-              onPress={() => {
-                if (innerOptions.saturation < 150) {
-                  innerOptions.saturation = innerOptions.saturation + 10;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('saturation', 10, 50, 150)}
             />
           </View>
         </View>
@@ -157,29 +133,13 @@ const Display: React.FC<Props> = ({options, onChange}) => {
             <IconButton
               icon="minus"
               size={20}
-              onPress={() => {
-                if (innerOptions.contrast > 50) {
-                  innerOptions.contrast = innerOptions.contrast - 10;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('contrast', -10, 50, 150)}
             />
             <Text variant="titleMedium">{innerOptions.contrast}%</Text>
             <IconButton
               icon="plus"
               size={20}
-              onPress={() => {
-                if (innerOptions.contrast < 150) {
-                  innerOptions.contrast = innerOptions.contrast + 10;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('contrast', 10, 50, 150)}
             />
           </View>
         </View>
@@ -207,29 +167,13 @@ const Display: React.FC<Props> = ({options, onChange}) => {
             <IconButton
               icon="minus"
               size={20}
-              onPress={() => {
-                if (innerOptions.brightness > 50) {
-                  innerOptions.brightness = innerOptions.brightness - 10;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('brightness', -10, 50, 150)}
             />
             <Text variant="titleMedium">{innerOptions.brightness}%</Text>
             <IconButton
               icon="plus"
               size={20}
-              onPress={() => {
-                if (innerOptions.brightness < 150) {
-                  innerOptions.brightness = innerOptions.brightness + 10;
-                  setInnerOptions(() => ({
-                    ...innerOptions,
-                  }));
-                  onChange && onChange(innerOptions);
-                }
-              }}
+              onPress={() => step('brightness', 10, 50, 150)}
             />
           </View>
         </View>

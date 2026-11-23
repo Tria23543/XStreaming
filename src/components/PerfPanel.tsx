@@ -13,7 +13,7 @@ type Props = {
 const PerfPanel: React.FC<Props> = ({performance = {}}) => {
   const {t} = useTranslation();
   const settings = getSettings();
-  const [battery, setBattery] = React.useState(100);
+  const [battery, setBattery] = React.useState(-1);
   const batteryInterval = React.useRef<any>(null);
 
   const isHorizon = settings.performance_style;
@@ -60,6 +60,9 @@ const PerfPanel: React.FC<Props> = ({performance = {}}) => {
   // Show real values (including a genuine 0); only missing data shows '--'.
   const showVal = (v: any) => {
     if (v === undefined || v === null || v === '') {
+      return '--';
+    }
+    if (typeof v === 'number' && isNaN(v)) {
       return '--';
     }
     return v;

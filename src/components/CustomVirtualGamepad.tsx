@@ -40,7 +40,7 @@ const CustomVirtualGamepad: React.FC<Props> = ({
       },
       {
         name: 'RightTrigger',
-        x: width - 20,
+        x: width - 60,
         y: 40,
         scale: 1,
         show: true,
@@ -54,35 +54,35 @@ const CustomVirtualGamepad: React.FC<Props> = ({
       },
       {
         name: 'RightShoulder',
-        x: width - 20,
+        x: width - 60,
         y: 100,
         scale: 1,
         show: true,
       },
       {
         name: 'A',
-        x: width - 70,
+        x: width - 80,
         y: height - 50,
         scale: 1,
         show: true,
       },
       {
         name: 'B',
-        x: width - 30,
+        x: width - 40,
         y: height - 90,
         scale: 1,
         show: true,
       },
       {
         name: 'X',
-        x: width - 110,
+        x: width - 120,
         y: height - 90,
         scale: 1,
         show: true,
       },
       {
         name: 'Y',
-        x: width - 70,
+        x: width - 80,
         y: height - 130,
         scale: 1,
         show: true,
@@ -144,10 +144,15 @@ const CustomVirtualGamepad: React.FC<Props> = ({
         show: true,
       },
     ];
-    if (_settings[title]) {
-      const exitButtons = _settings[title];
-      setButtons(exitButtons);
+    if (
+      _settings[title] &&
+      Array.isArray(_settings[title]) &&
+      _settings[title].length > 0
+    ) {
+      setButtons(_settings[title]);
     } else {
+      // No saved layout (or an empty/corrupt one): fall back to defaults
+      // instead of rendering no gamepad at all.
       setButtons(_buttons);
     }
   }, [title]);
@@ -167,7 +172,7 @@ const CustomVirtualGamepad: React.FC<Props> = ({
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       {buttons.map((button: any) => {
-        if (!button.show) {
+        if (button.show === false) {
           return null;
         }
         if (button.name === 'Dpad') {
@@ -175,6 +180,7 @@ const CustomVirtualGamepad: React.FC<Props> = ({
             <Dpad
               key={button.name}
               scale={button.scale}
+              size={button.width || 100}
               style={{
                 opacity: opacity,
                 left: button.x,
@@ -213,7 +219,6 @@ const CustomVirtualGamepad: React.FC<Props> = ({
               ]}>
               <ReactNativeJoystick
                 color="#ffffff"
-                style={{opacity}}
                 radius={50}
                 onMove={data => handleStickMove('right', data)}
                 onStart={data => handleStickMove('right', data)}

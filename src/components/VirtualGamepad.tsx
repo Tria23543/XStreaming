@@ -177,7 +177,6 @@ const VirtualGamepad: React.FC<Props> = ({
       <View style={[styles.button, styles.rightJs, {opacity}]}>
         <ReactNativeJoystick
           color="#ffffff"
-          style={{opacity}}
           radius={50}
           onMove={data => handleStickMove('right', data)}
           onStart={data => handleStickMove('right', data)}
