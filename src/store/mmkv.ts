@@ -2,26 +2,17 @@ import {MMKV} from 'react-native-mmkv';
 
 export const storage = new MMKV();
 
-// Auth tokens are sensitive, so they live in a separate encrypted MMKV
-// instance. The encryption key is generated once and kept in the default
-// storage; the token payload itself is never stored in plaintext.
-const TOKEN_CRYPT_KEY_ID = 'tokenstore.cryptkey';
-
-const getOrCreateCryptKey = (): string => {
-  let key = storage.getString(TOKEN_CRYPT_KEY_ID);
-  if (!key) {
-    const chars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    key = '';
-    for (let i = 0; i < 16; i++) {
-      key += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    storage.set(TOKEN_CRYPT_KEY_ID, key);
-  }
-  return key;
-};
-
+// Auth tokens live in their own MMKV instance, exactly as upstream
+// ships it: a plain instance. An earlier build of ours made this an
+// ENCRYPTED instance whose key was generated once and kept in the
+// default storage above. That design is removed: the key sat in
+// plaintext next to the data it protected (no real protection), and
+// the encrypted instance's Android native path is the one part of the
+// sign-in chain that misbehaves there — writes/reads against it fail
+// while every other store (all plain instances) works, which left
+// Android unable to persist a login at all. A fresh instance id is
+// used so no bytes written by the encrypted instance are ever read
+// back through the plain one.
 export const tokenStorage = new MMKV({
-  id: 'tokenstore',
-  encryptionKey: getOrCreateCryptKey(),
+  id: 'tokenstore.plain',
 });
