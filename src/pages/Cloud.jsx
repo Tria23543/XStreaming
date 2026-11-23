@@ -11,7 +11,8 @@ import {
   RefreshControl,
   Pressable,
 } from 'react-native';
-import {Text, Appbar, FAB} from 'react-native-paper';
+import {Text, Appbar, FAB, Button} from 'react-native-paper';
+import NetInfo from '@react-native-community/netinfo';
 import {useSelector} from 'react-redux';
 import TitleItem, {getTitleBadge} from '../components/TitleItem';
 import FastImage from 'react-native-fast-image';
@@ -36,6 +37,7 @@ const SIGL_TOUCH = '9c86f07a-f3e8-45ad-82a0-a1f759597059';
 function CloudScreen({navigation, route}) {
   const {t} = useTranslation();
   const streamingTokens = useSelector(state => state.streamingTokens);
+  const authentication = useSelector(state => state.authentication);
 
   const [current, setCurrent] = React.useState(3);
   const [numColumns, setNumColumns] = React.useState(2);
@@ -83,15 +85,42 @@ function CloudScreen({navigation, route}) {
 
   // Grace period for the token: while there is no streaming token,
   // count 10 seconds before the tab may call itself limited. If the
-  // token arrives first, the wait resets.
+  // token arrives first, the wait resets. Each retry starts a fresh
+  // wait cycle.
+  const [waitCycle, setWaitCycle] = React.useState(0);
   React.useEffect(() => {
     if (xCloudToken) {
       setTokenWaitExpired(false);
       return undefined;
     }
+    setTokenWaitExpired(false);
     const waitTimer = setTimeout(() => setTokenWaitExpired(true), 10000);
     return () => clearTimeout(waitTimer);
-  }, [xCloudToken]);
+  }, [xCloudToken, waitCycle]);
+
+  // Ask the shared sign-in flow to mint the streaming token again and
+  // restart the grace wait. The flow is single-flight and resets
+  // cleanly after a failure, so calling this repeatedly is safe. This
+  // is what recovers the tab when the app was opened offline: nothing
+  // else re-runs the sign-in when connectivity returns, so without it
+  // the only cure was restarting the app.
+  const retryAuth = React.useCallback(() => {
+    setWaitCycle(c => c + 1);
+    if (authentication && authentication.checkAuthentication) {
+      authentication.checkAuthentication().catch(() => {});
+    }
+  }, [authentication]);
+
+  // Recover automatically the moment connectivity returns while the
+  // tab is still tokenless.
+  React.useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && !xCloudToken) {
+        retryAuth();
+      }
+    });
+    return () => unsubscribe();
+  }, [xCloudToken, retryAuth]);
 
   // Put a complete catalog (cached or freshly fetched) on screen: build
   // the product map, the owned-games list and every curated section from
@@ -741,6 +770,12 @@ function CloudScreen({navigation, route}) {
               {t('NoXGP')}
             </Text>
           </View>
+          <Button
+            mode="contained"
+            onPress={retryAuth}
+            style={{marginTop: 16}}>
+            {t('Retry')}
+          </Button>
         </View>
       )}
 
