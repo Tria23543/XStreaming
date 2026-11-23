@@ -6,9 +6,15 @@ export default class Token {
   }
 
   calculateSecondsLeft(date) {
-    const expiresOn = date;
+    const time = date && date.getTime ? date.getTime() : NaN;
+    if (isNaN(time)) {
+      // Missing/unparseable expiry (e.g. no NotAfter): treat the token as
+      // already expired instead of comparing against NaN, which would
+      // make isValid() report a dead token as valid forever.
+      return -1;
+    }
     const currentDate = new Date();
-    return Math.floor((expiresOn.getTime() - currentDate.getTime()) / 1000);
+    return Math.floor((time - currentDate.getTime()) / 1000);
   }
 
   getSecondsValid() {
