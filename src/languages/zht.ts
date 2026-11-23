@@ -168,6 +168,8 @@ export default {
       '沒有可用的登錄連結，請返回後重試。',
     'No servers available yet. Please log in first, then reopen this page.':
       '暫無可用的伺服器，請先登錄，然後重新開啟此頁面。',
+    'Please select a server first, then save.':
+      '請先選擇一個伺服器，然後再儲存。',
     'Streaming is closed.': '串流已關閉',
     'The login page failed to load. Please check your connection and try again.':
       '登錄頁面載入失敗，請檢查網絡連接後重試。',

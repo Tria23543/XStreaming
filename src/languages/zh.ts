@@ -191,6 +191,8 @@ export default {
       '没有可用的登录链接，请返回后重试。',
     'No servers available yet. Please log in first, then reopen this page.':
       '暂无可用的服务器，请先登录，然后重新打开此页面。',
+    'Please select a server first, then save.':
+      '请先选择一个服务器，然后再保存。',
     'Streaming is closed.': '串流已关闭',
     'The login page failed to load. Please check your connection and try again.':
       '登录页面加载失败，请检查网络连接后重试。',
