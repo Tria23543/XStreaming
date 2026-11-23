@@ -47,9 +47,9 @@ export default {
     'Audio bitrate': '聲音碼率',
     'Set the streaming audio bitrate': '設置串流的聲音碼率',
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '設置主機串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）',
+      '設置主機串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）。',
     'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '設置雲遊戲串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）',
+      '設置雲遊戲串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）。',
     Codec: '編碼器',
     'If your device supports newer codecs, it can reduce the video bandwidth requirements':
       '如果您的設備支持較新的編解碼器，則可以降低視頻帶寬要求。',
@@ -94,7 +94,7 @@ export default {
     'Current user': '當前用戶',
     'Powered on': '開機',
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
-      '自定義虛擬按鍵位置可能跟實際渲染存在誤差，請以實際效果為準。',
+      '📢自定義虛擬按鍵位置可能跟實際渲染存在誤差，請以實際效果為準。',
     Theme: '主題',
     'Set the app theme, takes effect immediately': '設置APP主題，立即生效。',
     'Signal server': '信令伺服器',

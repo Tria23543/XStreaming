@@ -47,9 +47,9 @@ export default {
     'Audio bitrate': '声音码率',
     'Set the streaming audio bitrate': '设置串流的声音码率',
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '设置主机串流码率（注意：并不是码率越高越好，最终码率以串流协商为准）',
+      '设置主机串流码率（注意：并不是码率越高越好，最终码率以串流协商为准）。',
     'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '设置云游戏串流码率（注意：并不是码率越高越好，最终码率以串流协商为准）',
+      '设置云游戏串流码率（注意：并不是码率越高越好，最终码率以串流协商为准）。',
     Codec: '编码器',
     'If your device supports newer codecs, it can reduce the video bandwidth requirements':
       '如果您的设备支持较新的编解码器，则可以降低视频带宽要求。',
