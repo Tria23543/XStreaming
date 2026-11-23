@@ -37,7 +37,6 @@ export default {
     All: '全部',
     Search: '搜索',
     Unlocked: '已解锁',
-    Lock: '未解锁',
     'App language': '应用语言',
     'Set language of XStreaming': '设置XStreaming应用语言',
     Resolution: '分辨率',
@@ -229,6 +228,28 @@ export default {
     'Resolution: 720P (next stream)': '分辨率：720P（下次串流）',
     'Resolution: 1080P (next stream)': '分辨率：1080P（下次串流）',
     'Resolution: 1080P HQ (next stream)': '分辨率：1080P HQ（下次串流）',
+    'GAME PASS': '通行证',
+    OWNED: '已拥有',
+    FREE: '免费',
+    Name: '名称',
+    'XStreaming is a fully open-source mobile client for xCloud and Xbox home streaming, greatly inspired by':
+      'XStreaming 是一款完全开源的移动客户端，用于 xCloud 和 Xbox 主机串流，深受以下项目启发：',
+    'Want to contribute to XStreaming?': '想为 XStreaming 做贡献？',
+    'XStreaming-desktop (Windows/macOS/SteamOS):':
+      'XStreaming-desktop（Windows/macOS/SteamOS）：',
+    'Are you looking for a PlayStation streaming client?':
+      '在找 PlayStation 串流客户端吗？',
+    'Support XStreaming to Make the Project Better!':
+      '支持 XStreaming，让项目变得更好！',
+    'You can contribute through GitHub Sponsors or via the XStreaming online donation platform.':
+      '你可以通过 GitHub Sponsors 或 XStreaming 在线捐赠平台进行支持。',
+    Community: '社区',
+    'Interested in console streaming, cloud gaming and streaming technology? You are welcome to join the author\'s QQ group chat.':
+      '对主机串流、云游戏和串流技术感兴趣？欢迎加入作者的 QQ 群聊。',
+    'QQ group: 964721224': 'QQ群：964721224',
+    'Support the author': '支持作者',
+    'You can also support XStreaming through GitHub Sponsors:':
+      '你也可以通过 GitHub Sponsors 支持 XStreaming：',
     'The stream page failed to load. Please go back and try again.':
       '串流页面加载失败，请返回后重试',
   },

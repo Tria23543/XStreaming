@@ -26,7 +26,7 @@ export default {
     'Press Nexus': '按下西瓜鍵',
     'Long press Nexus': '長按西瓜鍵',
     Disconnect: '斷開連接',
-    'Disconnect and power off': '斷開連接并關機',
+    'Disconnect and power off': '斷開連接並關機',
     NoXGP:
       '你沒有開通XGPU或所在地區沒有XGPU權限，請檢查賬號權限或到設置中修改地區重試。',
     NoConsoles:
@@ -37,12 +37,11 @@ export default {
     All: '全部',
     Search: '搜索',
     Unlocked: '已解鎖',
-    Lock: '未解鎖',
     'App language': '應用語言',
     'Set language of XStreaming': '設置XStreaming應用語言',
-    Resolution: '分辨率',
+    Resolution: '解析度',
     'Set resolution, support 720P/1080P/1080P(HQ)':
-      '設置串流分辨率，支持720P/1080P/1080P(HQ)切換',
+      '設置串流解析度，支持720P/1080P/1080P(HQ)切換',
     'Host stream bitrate': '主機串流碼率',
     'Cloud stream bitrate': '雲遊戲碼率',
     'Audio bitrate': '聲音碼率',
@@ -89,7 +88,7 @@ export default {
     'Currently no network connection, please connect and try again':
       '當前無網絡連接，請連接後再使用',
     noAllow:
-      '你沒有權限開始串流或雲遊戲，請檢查登入是否過期並嘗試重新登入，如果你正在嘗試遊玩雲遊戲，請確保你是XGPU，如果你正在嘗試遊玩非XGPU遊戲，請確保你已經購買此遊戲',
+      '你沒有權限開始串流或雲遊戲，請檢查登錄是否過期並嘗試重新登錄，如果你正在嘗試遊玩雲遊戲，請確保你是XGPU，如果你正在嘗試遊玩非XGPU遊戲，請確保你已經購買此遊戲',
     Logout: '登出',
     'Do you want to logout?': '要登出嗎？',
     'Current user': '當前用戶',
@@ -166,12 +165,12 @@ export default {
       '調整銳度、飽和度、對比度和亮度',
     'Community and support the author': '社群與支持作者',
     'No login link available. Please go back and try again.':
-      '沒有可用的登入連結，請返回後重試',
+      '沒有可用的登錄連結，請返回後重試',
     'No servers available yet. Please log in first, then reopen this page.':
-      '暫無可用的伺服器，請先登入，然後重新開啟此頁面',
+      '暫無可用的伺服器，請先登錄，然後重新開啟此頁面',
     'Streaming is closed.': '串流已關閉',
     'The login page failed to load. Please check your connection and try again.':
-      '登入頁面載入失敗，請檢查網絡連接後重試',
+      '登錄頁面載入失敗，請檢查網絡連接後重試',
     'Streaming is not ready yet. Please go back and try again.':
       '串流尚未就緒，請返回後重試',
     'Failed to load games. Please check your connection and try again.':
@@ -206,6 +205,51 @@ export default {
     'Resolution: 720P (next stream)': '解析度：720P（下次串流）',
     'Resolution: 1080P (next stream)': '解析度：1080P（下次串流）',
     'Resolution: 1080P HQ (next stream)': '解析度：1080P HQ（下次串流）',
+    'Joystick edge compensation': '搖桿邊緣補償',
+    "If your joystick's maximum value doesn't reach the expected level, you can set maximum value compensation":
+      '如果你的搖桿最大值達不到預期，可以在此處設置最大值補償',
+    'Power on when streaming': '串流時開機',
+    power_on_description:
+      '選擇主機串流時是否開啟，默認主機開啟睡眠模式後串流時電源燈不會亮，開啟此選項後主機會徹底開機，並可能喚醒顯示器',
+    'Customize virtual buttons': '自定義虛擬按鍵',
+    'Customize buttons of virtual gamepad': '自定義虛擬手柄按鍵',
+    'Click on an element to set its size and display':
+      '👆點擊元素設置元素大小及顯示',
+    'Drag elements to adjust their position': '✋拖動元素調整位置',
+    'Name can not be empty': '名稱不能為空',
+    'Performance show style': '性能展示樣式',
+    'Setting performance show style': '設置性能展示(水平/垂直)',
+    Vertical: '垂直',
+    Size: '大小',
+    Show: '顯示',
+    Select: '選擇',
+    Edit: '編輯',
+    Delete: '刪除',
+    Connected: '連接成功',
+    Native: '原生',
+    Device: '設備',
+    'GAME PASS': '通行證',
+    OWNED: '已擁有',
+    FREE: '免費',
+    Name: '名稱',
+    'XStreaming is a fully open-source mobile client for xCloud and Xbox home streaming, greatly inspired by':
+      'XStreaming 是一款完全開源的行動客戶端，用於 xCloud 和 Xbox 主機串流，深受以下專案啟發：',
+    'Want to contribute to XStreaming?': '想為 XStreaming 做貢獻？',
+    'XStreaming-desktop (Windows/macOS/SteamOS):':
+      'XStreaming-desktop（Windows/macOS/SteamOS）：',
+    'Are you looking for a PlayStation streaming client?':
+      '在找 PlayStation 串流客戶端嗎？',
+    'Support XStreaming to Make the Project Better!':
+      '支持 XStreaming，讓專案變得更好！',
+    'You can contribute through GitHub Sponsors or via the XStreaming online donation platform.':
+      '你可以透過 GitHub Sponsors 或 XStreaming 線上捐贈平台進行支持。',
+    Community: '社群',
+    'Interested in console streaming, cloud gaming and streaming technology? You are welcome to join the author\'s QQ group chat.':
+      '對主機串流、雲遊戲和串流技術感興趣？歡迎加入作者的 QQ 群聊。',
+    'QQ group: 964721224': 'QQ群：964721224',
+    'Support the author': '支持作者',
+    'You can also support XStreaming through GitHub Sponsors:':
+      '你也可以透過 GitHub Sponsors 支持 XStreaming：',
     'The stream page failed to load. Please go back and try again.':
       '串流頁面載入失敗，請返回後重試',
   },
