@@ -52,12 +52,22 @@ public class XalManager extends ReactContextBaseJavaModule {
 
     private static byte[] bigIntegerToByteArray(BigInteger bigInteger) {
         byte[] array = bigInteger.toByteArray();
-        if (array[0] == 0) {
-            byte[] newArray = new byte[array.length - 1];
-            System.arraycopy(array, 1, newArray, 0, newArray.length);
-            return newArray;
+        if (array.length == 32) {
+            return array;
         }
-        return array;
+        // A JWK coordinate must be exactly 32 bytes. The two's-complement
+        // form is 33 bytes when a leading sign byte is present (drop all
+        // but the last 32) and can be SHORTER than 32 when the coordinate
+        // itself has leading zero bytes — the old code returned those
+        // short arrays unchanged, producing a malformed proof key and an
+        // intermittent device-auth failure. Left-pad to 32 instead.
+        byte[] result = new byte[32];
+        if (array.length > 32) {
+            System.arraycopy(array, array.length - 32, result, 0, 32);
+        } else {
+            System.arraycopy(array, 0, result, 32 - array.length, array.length);
+        }
+        return result;
     }
 
     private String getProofKeyX(ECPublicKey ecPublicKey) {
@@ -143,12 +153,12 @@ public class XalManager extends ReactContextBaseJavaModule {
         bytesToSign.write(authorizationToken.getBytes());
         bytesToSign.write(new byte[] { 0 });
 
-        Gson normalGson = new GsonBuilder().disableHtmlEscaping().create();
-
-        // json string -> json object
-        JsonObject jsonObject = JsonParser.parseString(postData).getAsJsonObject();
-
-        bytesToSign.write(normalGson.toJson(jsonObject).getBytes());
+        // Sign the exact body bytes the app sends, byte for byte — the
+        // same contract the iOS implementation uses. This code previously
+        // re-serialised the JSON through Gson before signing; any byte
+        // difference between the re-serialised form and the body actually
+        // posted makes the server reject the signature.
+        bytesToSign.write(postData.getBytes(StandardCharsets.UTF_8));
         bytesToSign.write(new byte[] { 0 });
 
         Signature signature = Signature.getInstance("SHA256withECDSA");

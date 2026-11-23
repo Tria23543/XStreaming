@@ -62,6 +62,11 @@ class Dpad {
         directionPressed =  Dpad.UP;
       } else if (Float.compare(yaxis, 1.0f) == 0) {
         directionPressed =  Dpad.DOWN;
+      } else {
+        // Hat centred: without this, directionPressed kept whatever
+        // direction was pressed last, so the app saw the D-pad as
+        // held down forever and the matching key-up never fired.
+        directionPressed = Dpad.CENTER;
       }
     }
 
