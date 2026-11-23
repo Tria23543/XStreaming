@@ -92,6 +92,14 @@ function LoginScreen({navigation, route}) {
           source={{uri: authUrl}}
           originWhitelist={['*']}
           setSupportMultipleWindows={false}
+          // Android-only switches (iOS ignores both): Microsoft's
+          // sign-in pages use web storage during the flow, and the
+          // flow crosses sites, so Android's WebView needs DOM
+          // storage and third-party cookies explicitly enabled or
+          // the sign-in can complete at Microsoft yet come back
+          // without a usable result.
+          domStorageEnabled={true}
+          thirdPartyCookiesEnabled={true}
           onLoadStart={syntheticEvent => {
             loadedUrlRef.current = null;
             // The load event's own URL is the authoritative record
@@ -115,7 +123,25 @@ function LoginScreen({navigation, route}) {
               null;
             setPageLoading(false);
           }}
-          onError={() => setLoadError(true)}
+          onError={syntheticEvent => {
+            // Android's WebView reports a navigation to the custom
+            // ms-xal scheme as an error (ERR_UNKNOWN_URL_SCHEME) in
+            // some flows instead of as a navigation the other
+            // handlers can intercept. The failing URL travels with
+            // the error event — if it is the login redirect, capture
+            // it exactly like a navigation. (iOS intercepts the
+            // scheme earlier, so this branch never fires there.)
+            const errorUrl =
+              (syntheticEvent &&
+                syntheticEvent.nativeEvent &&
+                syntheticEvent.nativeEvent.url) ||
+              '';
+            if (errorUrl.startsWith('ms-xal-000000004c20a908:')) {
+              handleRedirect(errorUrl);
+              return;
+            }
+            setLoadError(true);
+          }}
           onHttpError={syntheticEvent => {
             // Only a failure of the login page ITSELF is fatal: this
             // callback also fires for subresource requests, and one
