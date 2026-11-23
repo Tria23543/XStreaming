@@ -4,13 +4,15 @@ import {View, TouchableOpacity, StyleSheet} from 'react-native';
 type Props = {
   style: any;
   scale?: number;
+  size?: number;
   onPressIn: any;
   onPressOut: any;
 };
 
-const GamepadButton: React.FC<Props> = ({
+const Dpad: React.FC<Props> = ({
   style = {},
   scale = 1,
+  size = 100,
   onPressIn,
   onPressOut,
 }) => {
@@ -23,7 +25,12 @@ const GamepadButton: React.FC<Props> = ({
   };
 
   return (
-    <View style={[styles.dpad, {transform: [{scale}]}, style]}>
+    <View
+      style={[
+        styles.dpad,
+        {width: size, height: size, transform: [{scale}]},
+        style,
+      ]}>
       <TouchableOpacity
         style={[styles.button, styles.dpadLeft]}
         onPressIn={() => {
@@ -64,53 +71,54 @@ const GamepadButton: React.FC<Props> = ({
   );
 };
 
-// All four segments live inside the 120x120 container, so every part of
-// the cross is visible and tappable exactly where it is drawn.
+// Segment geometry is percentage-based so the cross fills whatever size
+// the layout assigns (layouts define the D-pad as 100x100 by default):
+// arms are 37.5% long and 25% thick, starting at 37.5%/62.5% offsets.
+// Every part of the cross stays inside the container, visible and
+// tappable exactly where it is drawn.
 const styles = StyleSheet.create({
   dpad: {
     position: 'absolute',
-    width: 120,
-    height: 120,
   },
   button: {
     position: 'absolute',
   },
   dpadLeft: {
-    width: 45,
-    height: 30,
+    width: '37.5%',
+    height: '25%',
     borderWidth: 2,
     borderColor: '#fff',
     left: 0,
-    top: 45,
+    top: '37.5%',
     borderRightWidth: 0,
   },
   dpadTop: {
-    width: 30,
-    height: 45,
+    width: '25%',
+    height: '37.5%',
     borderWidth: 2,
     borderColor: '#fff',
-    left: 45,
+    left: '37.5%',
     top: 0,
     borderBottomWidth: 0,
   },
   dpadRight: {
-    width: 45,
-    height: 30,
+    width: '37.5%',
+    height: '25%',
     borderWidth: 2,
     borderColor: '#fff',
-    left: 75,
-    top: 45,
+    left: '62.5%',
+    top: '37.5%',
     borderLeftWidth: 0,
   },
   dpadBottom: {
-    width: 30,
-    height: 45,
+    width: '25%',
+    height: '37.5%',
     borderWidth: 2,
     borderColor: '#fff',
-    left: 45,
-    top: 75,
+    left: '37.5%',
+    top: '62.5%',
     borderTopWidth: 0,
   },
 });
 
-export default GamepadButton;
+export default Dpad;
