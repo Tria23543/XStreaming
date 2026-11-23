@@ -7,11 +7,8 @@ export default class StreamingToken extends Token {
     this._objectCreateTime = Date.now();
   }
 
-  calculateSecondsLeft(date) {
-    const expiresOn = date;
-    const currentDate = new Date();
-    return Math.floor((expiresOn.getTime() - currentDate.getTime()) / 1000);
-  }
+  // No calculateSecondsLeft override: inherit the base class version,
+  // which guards against missing/unparseable expiry dates.
 
   getSecondsValid() {
     if (this.data?.durationInSeconds) {

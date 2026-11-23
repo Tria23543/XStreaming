@@ -8,11 +8,9 @@ export default class UserToken extends Token {
     this.data = data;
   }
 
-  calculateSecondsLeft(date) {
-    const expiresOn = date;
-    const currentDate = new Date();
-    return Math.floor((expiresOn.getTime() - currentDate.getTime()) / 1000);
-  }
+  // No calculateSecondsLeft override: the base class version returns
+  // -1 for a missing/unparseable expiry, while a local copy returned
+  // NaN — and NaN comparisons would read a dead token as valid.
 
   getSecondsValid() {
     return this.calculateSecondsLeft(new Date(this.data.expires_on));
