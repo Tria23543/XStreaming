@@ -22,6 +22,9 @@ jobs:
           corepack enable || true
           yarn install --immutable || yarn install
 
+      - name: Apply Android-only library compatibility fix
+        run: cp tools/android/RNGestureHandlerPackage.kt node_modules/react-native-gesture-handler/android/packageDeprecated/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerPackage.kt
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
