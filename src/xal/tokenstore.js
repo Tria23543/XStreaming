@@ -8,8 +8,28 @@ export default class TokenStore {
   _userToken;
   _sisuToken;
   _tokenUpdateTime;
+  // Bumped by clear() and load(): an async flow that captured the
+  // revision before an await can tell that the store it meant to
+  // write to has been emptied or replaced meanwhile, and must not
+  // persist into it (a logout racing a silent refresh would
+  // otherwise resurrect the login it just cleared).
+  _revision = 0;
+
+  getRevision() {
+    return this._revision;
+  }
+
+  // Signal that an authoritative writer outside any refresh flow
+  // (an interactive login) replaced the store's contents: a refresh
+  // that captured the old revision must no longer persist into it.
+  // (Not folded into save(): refreshTokens saves twice and would
+  // invalidate its own second save.)
+  invalidate() {
+    this._revision += 1;
+  }
 
   load() {
+    this._revision += 1;
     let tokens = null;
     try {
       tokens = tokenStorage.getString(STORE_KEY);
@@ -83,9 +103,12 @@ export default class TokenStore {
     );
 
     if (isNaN(expireDate.getTime())) {
-      // Missing/invalid expires_in: keep the raw data instead of throwing
-      // on toISOString(); the token will simply read as expired and the
-      // refresh path will handle it.
+      // Only a non-finite/overflowing expires_in reaches this branch
+      // (a missing or invalid one coerces to 0 above, stamping
+      // expires_on as now — already expired, the safe direction).
+      // Keep the raw data instead of throwing on toISOString(); the
+      // token will simply read as expired and the refresh path will
+      // handle it.
       this._userToken = new UserToken({...userToken.data});
       return;
     }
@@ -116,8 +139,14 @@ export default class TokenStore {
     return this._tokenUpdateTime;
   }
 
-  save() {
-    this._tokenUpdateTime = Date.now();
+  save(options) {
+    // The intermediate save in a token refresh passes
+    // {advanceUpdateTime: false}: it persists a PARTIAL refresh, and
+    // stamping the update time would make the freshness check treat
+    // that incomplete refresh as a completed one.
+    if (!options || options.advanceUpdateTime !== false) {
+      this._tokenUpdateTime = Date.now();
+    }
     const data = JSON.stringify({
       userToken: this._userToken?.data,
       sisuToken: this._sisuToken?.data,
@@ -128,6 +157,7 @@ export default class TokenStore {
   }
 
   clear() {
+    this._revision += 1;
     try {
       tokenStorage.delete(STORE_KEY);
     } catch (e) {

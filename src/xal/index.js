@@ -239,6 +239,12 @@ export default class Xal {
     this._webToken = undefined;
     this._xhomeToken = undefined;
     this._xcloudToken = undefined;
+    // The login also replaces the store for any silent refresh still
+    // in flight: invalidate the revision it captured, or its saves
+    // race this one last-writer-wins — persisting the previous
+    // account's tokens, or a mixed user/Sisu pairing, over the login
+    // that just completed.
+    tokenStore.invalidate();
     tokenStore.save();
     return true;
   }
@@ -375,6 +381,12 @@ export default class Xal {
     if (curUserToken === undefined) {
       throw new Error('User token is missing. Please authenticate first');
     }
+    // Captured before the first await: if the store is cleared (a
+    // logout) or reloaded while this refresh is in flight, the
+    // revision moves on and nothing below may persist — writing the
+    // refreshed token into a just-cleared store would silently undo
+    // the logout on the next launch.
+    const revision = tokenStore.getRevision();
 
     try {
       const userToken = await this.refreshUserToken(curUserToken);
@@ -383,17 +395,28 @@ export default class Xal {
       // user token IMMEDIATELY — if the device/Sisu steps below fail on
       // a transient error, discarding it would leave the dead token in
       // the store and force a full interactive re-login next time.
-      tokenStore.setUserToken(userToken);
-      tokenStore.save();
+      // The save does not advance the update timestamp: this refresh
+      // is not complete yet, and the freshness check must not treat
+      // it as if it were.
+      if (tokenStore.getRevision() === revision) {
+        tokenStore.setUserToken(userToken);
+        tokenStore.save({advanceUpdateTime: false});
+      }
       const deviceToken = await this.getDeviceTokenHack();
       const sisuToken = await this.doSisuAuthorization(
         userToken,
         deviceToken,
       );
 
-      tokenStore.setUserToken(userToken);
-      tokenStore.setSisuToken(sisuToken);
-      tokenStore.save();
+      if (tokenStore.getRevision() === revision) {
+        // No second setUserToken: the intermediate save already
+        // stamped the token's expiry from the refresh response;
+        // re-setting it here would re-stamp it as completion time +
+        // expires_in, inflating its apparent validity by the whole
+        // device/Sisu latency.
+        tokenStore.setSisuToken(sisuToken);
+        tokenStore.save();
+      }
       return { userToken, deviceToken, sisuToken };
     } catch (error) {
       log.error('[refreshTokens] error:', error?.message || error);
@@ -485,6 +508,23 @@ export default class Xal {
   async getStreamingToken(tokenStore) {
     const sisuToken = tokenStore.getSisuToken();
     if (!sisuToken) throw new Error('Sisu token missing');
+
+    // Both cached streaming tokens still valid: return them as they
+    // are. Minting a fresh XSTS first (as this used to) bought
+    // nothing — the minted token was discarded — and an XSTS network
+    // failure there rejected the whole silent flow despite the
+    // fully usable cached pair.
+    if (
+      this._xhomeToken &&
+      this._xhomeToken.getSecondsValid() > 60 &&
+      this._xcloudToken &&
+      this._xcloudToken.getSecondsValid() > 60
+    ) {
+      return {
+        xHomeToken: this._xhomeToken,
+        xCloudToken: this._xcloudToken,
+      };
+    }
 
     const xstsToken = await this.doXstsAuthorization(
       sisuToken,
