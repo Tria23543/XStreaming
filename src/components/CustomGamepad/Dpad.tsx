@@ -64,49 +64,51 @@ const GamepadButton: React.FC<Props> = ({
   );
 };
 
+// All four segments live inside the 120x120 container, so every part of
+// the cross is visible and tappable exactly where it is drawn.
 const styles = StyleSheet.create({
   dpad: {
     position: 'absolute',
-    width: 50,
-    height: 50,
+    width: 120,
+    height: 120,
   },
   button: {
     position: 'absolute',
   },
   dpadLeft: {
-    width: 30,
-    height: 20,
+    width: 45,
+    height: 30,
     borderWidth: 2,
     borderColor: '#fff',
-    left: 30,
-    bottom: 80,
+    left: 0,
+    top: 45,
     borderRightWidth: 0,
   },
   dpadTop: {
-    width: 20,
-    height: 30,
+    width: 30,
+    height: 45,
     borderWidth: 2,
     borderColor: '#fff',
-    left: 58,
-    bottom: 100,
+    left: 45,
+    top: 0,
     borderBottomWidth: 0,
   },
   dpadRight: {
-    width: 30,
-    height: 20,
-    borderWidth: 2,
-    borderColor: '#fff',
-    left: 76,
-    bottom: 80,
-    borderLeftWidth: 0,
-  },
-  dpadBottom: {
-    width: 20,
+    width: 45,
     height: 30,
     borderWidth: 2,
     borderColor: '#fff',
-    left: 58,
-    bottom: 50,
+    left: 75,
+    top: 45,
+    borderLeftWidth: 0,
+  },
+  dpadBottom: {
+    width: 30,
+    height: 45,
+    borderWidth: 2,
+    borderColor: '#fff',
+    left: 45,
+    top: 75,
     borderTopWidth: 0,
   },
 });
