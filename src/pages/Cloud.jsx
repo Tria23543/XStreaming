@@ -429,8 +429,12 @@ function CloudScreen({navigation, route}) {
             numberOfLines={1}
             ellipsizeMode="tail">
             {sectionTitle}
-            {hydrated ? ' (' + data.length + ')' : ''}
           </Text>
+          {hydrated && (
+            <Text variant="titleLarge" style={styles.sectionCount}>
+              {'(' + data.length + ')'}
+            </Text>
+          )}
           <Text style={styles.showAll} onPress={onShowAll}>
             {t('Show all')}
           </Text>
@@ -493,15 +497,13 @@ function CloudScreen({navigation, route}) {
                 />
               )}
               <Appbar.Content
-                title={
-                  view === 'home'
-                    ? 'Cloud'
-                    : currentTitleText +
-                      (hydrated
-                        ? ' (' + currentTitles.current.length + ')'
-                        : '')
-                }
+                title={view === 'home' ? 'Cloud' : currentTitleText}
               />
+              {view !== 'home' && hydrated && (
+                <Text variant="titleLarge" style={styles.appbarCount}>
+                  {'(' + currentTitles.current.length + ')'}
+                </Text>
+              )}
             </Appbar.Header>
 
             {view === 'home' ? (
@@ -776,6 +778,19 @@ const styles = StyleSheet.create({
     // longer push "Show all" off the right edge of the screen.
     flex: 1,
     marginRight: 8,
+  },
+  sectionCount: {
+    fontWeight: 'bold',
+    // The count is its own element that never shrinks: when it was
+    // appended to the title string, a long title ("Included in your
+    // subscription") ellipsized the count itself away.
+    flexShrink: 0,
+    marginRight: 8,
+  },
+  appbarCount: {
+    fontWeight: 'bold',
+    flexShrink: 0,
+    marginRight: 12,
   },
   showAll: {
     color: '#52B043',
