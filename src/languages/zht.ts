@@ -14,9 +14,9 @@ export default {
     'Checking login status...': '正在檢查登錄...',
     Warning: '提示',
     WaitingForServerToRegister:
-      '無法在主機上建立串流，原因是主機沒有連接到Xbox伺服器，這通常發生在主機系統異常或主機正在更新或主機未登錄賬號，請嘗試手動重啟主機並重試',
+      '無法在主機上建立串流，原因是主機沒有連接到Xbox伺服器，這通常發生在主機系統異常或主機正在更新或主機未登錄賬號，請嘗試手動重啟主機並重試。',
     'Login has expired or not logged in, please log in again':
-      '登錄已失效或未登錄，請重新登錄',
+      '登錄已失效或未登錄，請重新登錄。',
     'Loading...': '加載中...',
     'Start stream': '開始串流',
     'Power on and start stream': '開機並串流',
@@ -38,14 +38,14 @@ export default {
     Search: '搜索',
     Unlocked: '已解鎖',
     'App language': '應用語言',
-    'Set language of XStreaming': '設置XStreaming應用語言',
+    'Set language of XStreaming': '設置XStreaming應用語言。',
     Resolution: '解析度',
     'Set resolution, support 720P/1080P/1080P(HQ)':
-      '設置串流解析度，支持720P/1080P/1080P(HQ)切換',
+      '設置串流解析度，支持720P/1080P/1080P（HQ）切換。',
     'Host stream bitrate': '主機串流碼率',
     'Cloud stream bitrate': '雲遊戲碼率',
     'Audio bitrate': '聲音碼率',
-    'Set the streaming audio bitrate': '設置聲音碼率',
+    'Set the streaming audio bitrate': '設置串流的聲音碼率',
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
       '設置主機串流碼率（注意：並不是碼率越高越好，最終碼率以串流協商為準）',
     'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
@@ -56,12 +56,12 @@ export default {
     Vibration: '振動',
     'Video stream format': '畫面比例',
     'Select video stream format, if you want video fullscreen, please select Stretch or Zoom':
-      '選擇視頻流格式，如果你需要畫面全屏，請選擇拉伸或縮放，如果你的物理顯示器不是16:9，會導致畫面不協調或展示不全',
-    'Aspect ratio': '保持長寬比(16:9)',
+      '選擇視頻流格式，如果你需要畫面全屏，請選擇拉伸或縮放，如果你的物理顯示器不是16:9，會導致畫面不協調或展示不全。',
+    'Aspect ratio': '保持長寬比（16:9）',
     'Native: Use native gamepad kernel to vibrate':
-      'Native: 使用原生手柄內核振動',
+      'Native: 使用原生手柄內核振動。',
     "Device: Use Phone/Pad's vibrate":
-      'Device: 使用手機或平板機身振動，如需手柄振動，請配合振動重定向使用',
+      'Device: 使用手機或平板機身振動，如需手柄振動，請配合振動重定向使用。',
     Stretch: '拉伸',
     Zoom: '縮放',
     'Gamepad kernel': '手柄內核',
@@ -74,9 +74,9 @@ export default {
     'Config joystick dead zone': '設置搖桿死區',
     'Set region': '地區設置',
     'Changing the region allows you to use XGPU services without a proxy':
-      '修改地區可以免代理使用XGPU服務',
+      '修改地區可以免代理使用XGPU服務。',
     'The signaling server is a server for stream negotiation. If the host cannot connect, please try modifying this option':
-      '信令伺服器用於串流開始握手階段，如出現無法連接主機/雲遊戲的情況，請嘗試修改此選項',
+      '信令伺服器用於串流開始握手階段，如出現無法連接主機/雲遊戲的情況，請嘗試修改此選項。',
     'Prioritize using IPv6 connection': '優先使用IPv6連接',
     IPv6: 'IPv6',
     Horizontal: '水平',
@@ -84,24 +84,24 @@ export default {
     Hide: '隱藏',
     'Preferred language of game': '遊戲偏好語言',
     'Set language of cloud game':
-      '設置雲遊戲語言，該選項會影響雲遊戲語言及好友、成就語言',
+      '設置雲遊戲語言，該選項會影響雲遊戲語言及好友、成就語言。',
     'Currently no network connection, please connect and try again':
-      '當前無網絡連接，請連接後再使用',
+      '當前無網絡連接，請連接後再使用。',
     noAllow:
-      '你沒有權限開始串流或雲遊戲，請檢查登錄是否過期並嘗試重新登錄，如果你正在嘗試遊玩雲遊戲，請確保你是XGPU，如果你正在嘗試遊玩非XGPU遊戲，請確保你已經購買此遊戲',
+      '你沒有權限開始串流或雲遊戲，請檢查登錄是否過期並嘗試重新登錄，如果你正在嘗試遊玩雲遊戲，請確保你是XGPU，如果你正在嘗試遊玩非XGPU遊戲，請確保你已經購買此遊戲。',
     Logout: '登出',
     'Do you want to logout?': '要登出嗎？',
     'Current user': '當前用戶',
     'Powered on': '開機',
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
-      '自定義虛擬按鍵位置可能跟實際渲染存在誤差，請以實際效果為準',
+      '自定義虛擬按鍵位置可能跟實際渲染存在誤差，請以實際效果為準。',
     Theme: '主題',
-    'Set the app theme, takes effect immediately': '設置APP主題，立即生效',
+    'Set the app theme, takes effect immediately': '設置APP主題，立即生效。',
     'Signal server': '信令伺服器',
     'Virtual gamepad': '虛擬手柄',
     'Always display the virtual gamepad': '始終顯示虛擬手柄',
     'Select gamepad kernel; you cannot use the virtual gamepad in the Web kernel':
-      '選擇手柄驅動內核，在 Web 內核下你將無法使用虛擬手柄',
+      '選擇手柄驅動內核，在 Web 內核下你將無法使用虛擬手柄。',
     'Config opacity of virtual gamepad': '設置虛擬按鍵透明度',
     'Show performance': '顯示性能面板',
     'Always display the performance panel': '始終顯示性能面板',
@@ -162,23 +162,23 @@ export default {
     'Name already exists': '名稱已存在',
     'Picture settings': '畫面設置',
     'Adjust sharpness, saturation, contrast and brightness':
-      '調整銳度、飽和度、對比度和亮度',
+      '調整銳度、飽和度、對比度和亮度。',
     'Community and support the author': '社群與支持作者',
     'No login link available. Please go back and try again.':
-      '沒有可用的登錄連結，請返回後重試',
+      '沒有可用的登錄連結，請返回後重試。',
     'No servers available yet. Please log in first, then reopen this page.':
-      '暫無可用的伺服器，請先登錄，然後重新開啟此頁面',
+      '暫無可用的伺服器，請先登錄，然後重新開啟此頁面。',
     'Streaming is closed.': '串流已關閉',
     'The login page failed to load. Please check your connection and try again.':
-      '登錄頁面載入失敗，請檢查網絡連接後重試',
+      '登錄頁面載入失敗，請檢查網絡連接後重試。',
     'Streaming is not ready yet. Please go back and try again.':
-      '串流尚未就緒，請返回後重試',
+      '串流尚未就緒，請返回後重試。',
     'Failed to load games. Please check your connection and try again.':
-      '遊戲載入失敗，請檢查網絡連接後重試',
+      '遊戲載入失敗，請檢查網絡連接後重試。',
     'No streaming server is available yet. Please try again.':
-      '暫無可用的串流伺服器，請稍後重試',
+      '暫無可用的串流伺服器，請稍後重試。',
     stream_warn_text:
-      '為了獲得更好的遊戲體驗，建議使用手柄控制器遊玩，手柄震動、扳機震動僅在iOS 14及以上生效',
+      '為了獲得更好的遊戲體驗，建議使用手柄控制器遊玩，手柄震動、扳機震動僅在iOS 14及以上生效。',
     'All games': '全部遊戲',
     'Jump back in': '繼續遊玩',
     'Most popular': '最熱門',
@@ -199,7 +199,7 @@ export default {
     Error: '錯誤',
     Later: '稍後',
     Locked: '未解鎖',
-    Tips: '提示',
+    Tips: '小提示',
     Fit: '適應',
     Retry: '重試',
     'Resolution: 720P (next stream)': '解析度：720P（下次串流）',
@@ -207,18 +207,18 @@ export default {
     'Resolution: 1080P HQ (next stream)': '解析度：1080P HQ（下次串流）',
     'Joystick edge compensation': '搖桿邊緣補償',
     "If your joystick's maximum value doesn't reach the expected level, you can set maximum value compensation":
-      '如果你的搖桿最大值達不到預期，可以在此處設置最大值補償',
+      '如果你的搖桿最大值達不到預期，可以在此處設置最大值補償。',
     'Power on when streaming': '串流時開機',
     power_on_description:
-      '選擇主機串流時是否開啟，默認主機開啟睡眠模式後串流時電源燈不會亮，開啟此選項後主機會徹底開機，並可能喚醒顯示器',
+      '選擇主機串流時是否開啟，默認主機開啟睡眠模式後串流時電源燈不會亮，開啟此選項後主機會徹底開機，並可能喚醒顯示器。',
     'Customize virtual buttons': '自定義虛擬按鍵',
     'Customize buttons of virtual gamepad': '自定義虛擬手柄按鍵',
     'Click on an element to set its size and display':
-      '👆點擊元素設置元素大小及顯示',
+      '👆點擊元素設置元素大小及顯示。',
     'Drag elements to adjust their position': '✋拖動元素調整位置',
     'Name can not be empty': '名稱不能為空',
     'Performance show style': '性能展示樣式',
-    'Setting performance show style': '設置性能展示(水平/垂直)',
+    'Setting performance show style': '設置性能展示（水平/垂直）',
     Vertical: '垂直',
     Size: '大小',
     Show: '顯示',
@@ -251,6 +251,6 @@ export default {
     'You can also support XStreaming through GitHub Sponsors:':
       '你也可以透過 GitHub Sponsors 支持 XStreaming：',
     'The stream page failed to load. Please go back and try again.':
-      '串流頁面載入失敗，請返回後重試',
+      '串流頁面載入失敗，請返回後重試。',
   },
 };

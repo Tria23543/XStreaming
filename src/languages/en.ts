@@ -6,7 +6,7 @@ export default {
     'Fetching user info...': 'Fetching user info...',
     'Fetching consoles...': 'Fetching consoles...',
     'Login successful, refreshing login credentials...':
-      'The login was successful, refreshing login credentials...',
+      'Login successful, refreshing login credentials...',
     'Checking login status...': 'Checking login status...',
     Warning: 'Warning',
     WaitingForServerToRegister:
@@ -33,6 +33,10 @@ export default {
     Codec: 'Codec',
     Vibration: 'Vibration',
     'Vibration mode': 'Vibration mode',
+    VeryWeak: 'Very weak',
+    Weak: 'Weak',
+    Strong: 'Strong',
+    VeryStrong: 'Very strong',
     'Joystick dead zone': 'Joystick dead zone',
     'Config joystick dead zone': 'Config joystick dead zone',
     'Set region': 'Set region',
@@ -41,9 +45,9 @@ export default {
     'Preferred language of game': 'Preferred language of game',
     'Set language of cloud game': 'Set language of cloud game',
     noAllow:
-      'Permission denied for streaming or cloud gaming. Please verify your login status and try logging in again. For cloud gaming, ensure you have an active XGPU subscription. For non-XGPU games, verify that you own the game',
+      'Permission denied for streaming or cloud gaming. Please verify your login status and try logging in again. For cloud gaming, ensure you have an active XGPU subscription. For non-XGPU games, verify that you own the game.',
     power_on_description:
-      "Choose whether to power on the console when streaming. By default, the console remains in sleep mode, and the power light won't turn on during streaming. Enabling this option will fully power on the host and may wake up the monitor",
+      "Choose whether to power on the console when streaming. By default, the console remains in sleep mode, and the power light won't turn on during streaming. Enabling this option will fully power on the host and may wake up the monitor.",
     Logout: 'Logout',
     'Do you want to logout?': 'Do you want to logout?',
     'Current user': 'Current user',

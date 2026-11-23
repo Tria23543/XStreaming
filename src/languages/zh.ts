@@ -6,7 +6,7 @@ export default {
     Login: '登录',
     About: '关于',
     Profile: '个人信息',
-    Feedback: '交流及赞赏',
+    Feedback: '反馈及支持',
     'Fetching user info...': '正在获取用户信息...',
     'Fetching consoles...': '正在获取主机信息...',
     'Login successful, refreshing login credentials...':
@@ -16,9 +16,9 @@ export default {
       '账号下没有找到主机，如果你有xbox主机，请确保主机开启了远程游玩功能，并且使用官方xbox App可以查看到该主机。',
     Warning: '提示',
     WaitingForServerToRegister:
-      '无法在主机上建立串流，原因是主机没有连接到Xbox服务器，这通常发生在主机系统异常或主机正在更新或主机未登录账号，请尝试手动重启主机并重试',
+      '无法在主机上建立串流，原因是主机没有连接到Xbox服务器，这通常发生在主机系统异常或主机正在更新或主机未登录账号，请尝试手动重启主机并重试。',
     'Login has expired or not logged in, please log in again':
-      '登录已失效或未登录，请重新登录',
+      '登录已失效或未登录，请重新登录。',
     'Loading...': '加载中...',
     'Start stream': '开始串流',
     'Power on and start stream': '开机并串流',
@@ -33,35 +33,35 @@ export default {
       '你没有开通XGPU或所在地区没有XGPU权限，请检查账号权限或到设置中修改地区重试。',
     Recently: '最近游玩',
     Newest: '新入库',
-    Own: '自购库',
+    Own: '自有库',
     All: '全部',
     Search: '搜索',
     Unlocked: '已解锁',
     'App language': '应用语言',
-    'Set language of XStreaming': '设置XStreaming应用语言',
+    'Set language of XStreaming': '设置XStreaming应用语言。',
     Resolution: '分辨率',
     'Set resolution, support 720P/1080P/1080P(HQ)':
-      '设置串流分辨率，支持720P/1080P/1080P(HQ)切换',
+      '设置串流分辨率，支持720P/1080P/1080P（HQ）切换。',
     'Host stream bitrate': '主机串流码率',
     'Cloud stream bitrate': '云游戏码率',
     'Audio bitrate': '声音码率',
-    'Set the streaming audio bitrate': '设置声音码率',
+    'Set the streaming audio bitrate': '设置串流的声音码率',
     'Set the host streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '设置主机串流码率(注意：并不是码率越高越好，最终码率以串流协商为准)',
+      '设置主机串流码率（注意：并不是码率越高越好，最终码率以串流协商为准）',
     'Set the cloud streaming bitrate (Note: Higher bitrate is not always better; the final bitrate will be determined by streaming negotiation)':
-      '设置云游戏串流码率(注意：并不是码率越高越好，最终码率以串流协商为准)',
+      '设置云游戏串流码率（注意：并不是码率越高越好，最终码率以串流协商为准）',
     Codec: '编码器',
     'If your device supports newer codecs, it can reduce the video bandwidth requirements':
       '如果您的设备支持较新的编解码器，则可以降低视频带宽要求。',
     Vibration: '震动',
     'Video stream format': '画面比例',
     'Select video stream format, if you want video fullscreen, please select Stretch or Zoom':
-      '选择视频流格式，如果你需要画面全屏,请选择拉伸或缩放，如果你的物理显示器不是16:9，会导致画面不协调或展示不全',
-    'Aspect ratio': '保持长宽比(16:9)',
+      '选择视频流格式，如果你需要画面全屏，请选择拉伸或缩放，如果你的物理显示器不是16:9，会导致画面不协调或展示不全。',
+    'Aspect ratio': '保持长宽比（16:9）',
     'Native: Use native gamepad kernel to vibrate':
-      'Native: 使用原生手柄内核震动',
+      'Native: 使用原生手柄内核震动。',
     "Device: Use Phone/Pad's vibrate":
-      'Device: 使用手机或平板机身震动，如需手柄震动，请配合震动重定向使用',
+      'Device: 使用手机或平板机身震动，如需手柄震动，请配合震动重定向使用。',
     Stretch: '拉伸',
     Zoom: '缩放',
     'Gamepad kernel': '手柄内核',
@@ -70,52 +70,52 @@ export default {
     'Vibration mode': '震动模式',
     'Vibration intensity': '震动强度',
     'Config vibration intensity of controller': '调节控制器震动强度',
-    'Joystick dead zone': '摇杆中心死区',
-    'Config joystick dead zone': '设置摇杆中心死区',
+    'Joystick dead zone': '摇杆死区',
+    'Config joystick dead zone': '设置摇杆死区',
     'Joystick edge compensation': '摇杆边缘补偿',
     "If your joystick's maximum value doesn't reach the expected level, you can set maximum value compensation":
-      '如果你的摇杆最大值达不到预期，可以在此处设置最大值补偿',
+      '如果你的摇杆最大值达不到预期，可以在此处设置最大值补偿。',
     'Set region': '地区设置',
     'Changing the region allows you to use XGPU services without a proxy':
-      '修改地区可以免代理使用XGPU服务',
+      '修改地区可以免代理使用XGPU服务。',
     'The signaling server is a server for stream negotiation. If the host cannot connect, please try modifying this option':
-      '信令服务器用于串流开始握手阶段，如出现无法连接主机/云游戏的情况，请尝试修改此选项',
+      '信令服务器用于串流开始握手阶段，如出现无法连接主机/云游戏的情况，请尝试修改此选项。',
     'Prioritize using IPv6 connection': '优先使用IPv6连接',
     IPv6: 'IPv6',
     'Preferred language of game': '游戏偏好语言',
     'Set language of cloud game':
-      '设置云游戏语言,该选项会影响云游戏语言及好友、成就语言',
+      '设置云游戏语言，该选项会影响云游戏语言及好友、成就语言。',
     'Currently no network connection, please connect and try again':
-      '当前无网络连接，请连接后再使用',
+      '当前无网络连接，请连接后再使用。',
     Logout: '退出登录',
-    'Do you want to logout?': '要退出登录吗?',
+    'Do you want to logout?': '要退出登录吗？',
     'Current user': '当前用户',
     'Powered on': '开机',
     Theme: '主题',
-    'Set the app theme, takes effect immediately': '设置APP主题，立即生效',
+    'Set the app theme, takes effect immediately': '设置APP主题，立即生效。',
     'Signal server': '信令服务器',
     'Virtual gamepad': '虚拟手柄',
     'Always display the virtual gamepad': '始终显示虚拟手柄',
     'Select gamepad kernel; you cannot use the virtual gamepad in the Web kernel':
-      '选择手柄驱动内核, 在Web内核下你将无法使用虚拟手柄',
+      '选择手柄驱动内核，在Web内核下你将无法使用虚拟手柄。',
     'Config opacity of virtual gamepad': '设置虚拟按键透明度',
     'Power on when streaming': '串流时开机',
     power_on_description:
-      '选择主机串流时是否开启，默认主机开启睡眠模式后串流时电源灯不会亮，开启此选项后主机会彻底开机，并可能唤醒显示器',
+      '选择主机串流时是否开启，默认主机开启睡眠模式后串流时电源灯不会亮，开启此选项后主机会彻底开机，并可能唤醒显示器。',
     'The position of custom virtual buttons may have discrepancies with actual rendering. Please refer to the actual effect for accuracy':
-      '📢自定义虚拟按键位置可能跟实际渲染存在误差，请以实际效果为准',
+      '📢自定义虚拟按键位置可能跟实际渲染存在误差，请以实际效果为准。',
     'Customize virtual buttons': '自定义虚拟按键',
     'Customize buttons of virtual gamepad': '自定义虚拟手柄按键',
     'Click on an element to set its size and display':
-      '👆点击元素设置元素大小及显示',
+      '👆点击元素设置元素大小及显示。',
     'Drag elements to adjust their position': '✋拖动元素调整位置',
     'Name can not be empty': '名称不能为空',
     'Show performance': '显示性能面板',
     'Always display the performance panel': '始终显示性能面板',
     'Performance show style': '性能展示样式',
-    'Setting performance show style': '设置性能展示(水平/垂直)',
+    'Setting performance show style': '设置性能展示（水平/垂直）',
     noAllow:
-      '你没有权限开始串流或云游戏，请检查登录是否过期并尝试重新登录，如果你正在尝试游玩云游戏，请确保你是XGPU，如果你正在尝试游玩非XGPU游戏，请确保你已经购买此游戏',
+      '你没有权限开始串流或云游戏，请检查登录是否过期并尝试重新登录，如果你正在尝试游玩云游戏，请确保你是XGPU，如果你正在尝试游玩非XGPU游戏，请确保你已经购买此游戏。',
     Horizontal: '水平',
     'About the author': '关于作者',
     Hide: '隐藏',
@@ -185,23 +185,23 @@ export default {
     'Name already exists': '名称已存在',
     'Picture settings': '画面设置',
     'Adjust sharpness, saturation, contrast and brightness':
-      '调整锐度、饱和度、对比度和亮度',
+      '调整锐度、饱和度、对比度和亮度。',
     'Community and support the author': '社区与支持作者',
     'No login link available. Please go back and try again.':
-      '没有可用的登录链接，请返回后重试',
+      '没有可用的登录链接，请返回后重试。',
     'No servers available yet. Please log in first, then reopen this page.':
-      '暂无可用的服务器，请先登录，然后重新打开此页面',
+      '暂无可用的服务器，请先登录，然后重新打开此页面。',
     'Streaming is closed.': '串流已关闭',
     'The login page failed to load. Please check your connection and try again.':
-      '登录页面加载失败，请检查网络连接后重试',
+      '登录页面加载失败，请检查网络连接后重试。',
     'Streaming is not ready yet. Please go back and try again.':
-      '串流尚未就绪，请返回后重试',
+      '串流尚未就绪，请返回后重试。',
     'Failed to load games. Please check your connection and try again.':
-      '游戏加载失败，请检查网络连接后重试',
+      '游戏加载失败，请检查网络连接后重试。',
     'No streaming server is available yet. Please try again.':
-      '暂无可用的串流服务器，请稍后重试',
+      '暂无可用的串流服务器，请稍后重试。',
     stream_warn_text:
-      '为了获得更好的游戏体验，建议使用手柄控制器游玩，手柄震动、扳机震动仅在iOS 14及以上生效',
+      '为了获得更好的游戏体验，建议使用手柄控制器游玩，手柄震动、扳机震动仅在iOS 14及以上生效。',
     'All games': '全部游戏',
     'Jump back in': '继续游玩',
     'Most popular': '最热门',
@@ -222,7 +222,7 @@ export default {
     Error: '错误',
     Later: '稍后',
     Locked: '未解锁',
-    Tips: '提示',
+    Tips: '小提示',
     Fit: '适应',
     Retry: '重试',
     'Resolution: 720P (next stream)': '分辨率：720P（下次串流）',
@@ -251,6 +251,6 @@ export default {
     'You can also support XStreaming through GitHub Sponsors:':
       '你也可以通过 GitHub Sponsors 支持 XStreaming：',
     'The stream page failed to load. Please go back and try again.':
-      '串流页面加载失败，请返回后重试',
+      '串流页面加载失败，请返回后重试。',
   },
 };
