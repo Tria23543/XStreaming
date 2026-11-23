@@ -22,37 +22,25 @@ export type Settings = {
   audio_bitrate: number | string;
   preferred_game_language: string;
   force_region_ip: string;
+  signaling_home: string;
+  signaling_cloud: string;
   codec: string;
   show_performance: boolean;
   performance_style: boolean;
   vibration: boolean;
   vibration_mode: string;
-  bind_usb_device: boolean;
   rumble_intensity: number;
   gamepad_kernal: string;
   dead_zone: number;
   edge_compensation: number;
-  short_trigger: boolean;
   video_format: string;
   show_virtual_gamead: boolean;
   virtual_gamepad_opacity: number;
   custom_virtual_gamepad: string;
-  gamepad_maping: Record<string, number> | null;
-  native_gamepad_maping: Record<string, number> | null;
-  sensor: number;
-  sensor_sensitivity_x: number;
-  sensor_sensitivity_y: number;
-  sensor_invert: number;
-  left_trigger_type: number;
-  left_trigger_effects: [];
-  right_trigger_type: number;
-  right_trigger_effects: [];
   display_options: DisplayOptions;
   ipv6: boolean;
-  check_update: boolean;
   power_on: boolean;
   theme: string;
-  debug: boolean;
 };
 
 const defaultSettings: Settings = {
@@ -66,33 +54,22 @@ const defaultSettings: Settings = {
   audio_bitrate: 20,
   preferred_game_language: 'en-US',
   force_region_ip: '168.126.63.1',
+  signaling_home: '',
+  signaling_cloud: '',
   codec: '',
   show_performance: true,
   performance_style: true,
   vibration: true,
   vibration_mode: 'Native',
-  bind_usb_device: false,
   rumble_intensity: 3,
   gamepad_kernal: 'Native',
   dead_zone: 0.1,
   edge_compensation: 0,
-  short_trigger: false,
   video_format: '',
   show_virtual_gamead: true,
   virtual_gamepad_opacity: 0.6,
   custom_virtual_gamepad: '',
-  gamepad_maping: null,
-  native_gamepad_maping: null,
-  sensor: 0,
-  sensor_sensitivity_x: 15000,
-  sensor_sensitivity_y: 15000,
-  sensor_invert: 0,
-  left_trigger_type: 0,
-  left_trigger_effects: [],
-  right_trigger_type: 0,
-  right_trigger_effects: [],
   ipv6: false,
-  check_update: true,
   power_on: false,
   display_options: {
     sharpness: 5,
@@ -101,7 +78,6 @@ const defaultSettings: Settings = {
     brightness: 100,
   },
   theme: 'dark',
-  debug: false,
 };
 
 export const saveSettings = (settings: Settings) => {
