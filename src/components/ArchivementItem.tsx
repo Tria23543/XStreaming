@@ -32,6 +32,14 @@ const ArchivementItem: React.FC<Props> = ({item}) => {
   const imageUrl =
     (item.mediaAssets && item.mediaAssets[0] && item.mediaAssets[0].url) || '';
 
+  // Reset the spinner when the instance is reused for a different
+  // item: without this the previous item's loaded state leaks into
+  // the new row and its (different) image gets no spinner. The same
+  // reset TitleItem already had.
+  React.useEffect(() => {
+    setLoading(true);
+  }, [imageUrl]);
+
   return (
     <View>
       <View style={styles.card}>

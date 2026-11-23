@@ -64,6 +64,15 @@ const CustomVirtualGamepad: React.FC<Props> = ({
           ...b,
           scale: Number.isFinite(b.scale) && b.scale > 0 ? b.scale : 1,
           show: typeof b.show === 'boolean' ? b.show : true,
+          // width/height are geometry too: a corrupt stored value
+          // (a string, NaN, null) reached the D-pad's size maths
+          // untouched and produced NaN or zero-size geometry.
+          // Anything that is not a positive finite number becomes
+          // undefined, so the renderers' own defaults apply.
+          width:
+            Number.isFinite(b.width) && b.width > 0 ? b.width : undefined,
+          height:
+            Number.isFinite(b.height) && b.height > 0 ? b.height : undefined,
         });
       });
     }
@@ -176,6 +185,8 @@ const CustomVirtualGamepad: React.FC<Props> = ({
               key={button.name}
               name={button.name}
               scale={button.scale}
+              width={button.width}
+              height={button.height}
               style={[
                 styles.button,
                 {opacity},
