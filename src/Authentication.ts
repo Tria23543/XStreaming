@@ -76,14 +76,29 @@ export default class Authentication {
     }
     const promise = new Promise<boolean>(resolve => {
       try {
+        if (this._flowRunning !== 0) {
+          // A flow is already running on the store — including a
+          // forced post-login flow, which never registers
+          // _inflightCheck, so this check could not join it above.
+          // Loading here would reload the store from disk underneath
+          // that flow: the reload bumps the token revision (making
+          // the flow skip its saves, so a just-rotated refresh token
+          // would be lost) and wipes the in-memory tokens the flow
+          // is using. Join the flow instead: its completion resolves
+          // this check through the notify path, and registering the
+          // resolver makes this promise the in-flight check below.
+          this._pendingCheckResolve = resolve;
+          return;
+        }
         this._tokenStore.load();
         log.info('[checkAuthentication] Starting token check...');
+        const hasValidAuthTokens = this._tokenStore.hasValidAuthTokens();
         log.info(
           '[checkAuthentication] hasValidAuthTokens:',
-          this._tokenStore.hasValidAuthTokens(),
+          hasValidAuthTokens,
         );
 
-        if (this._tokenStore.hasValidAuthTokens()) {
+        if (hasValidAuthTokens) {
           log.info('[checkAuthentication] Tokens are valid.');
           // Resolve from the silent flow's actual outcome (via
           // _notifyCompleted/_notifyFailed), not before it is known.

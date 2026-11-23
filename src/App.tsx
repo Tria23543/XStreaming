@@ -78,6 +78,8 @@ const TabIcon = (route: any, params: any) => {
     iconName = focused ? 'settings' : 'settings-outline';
   } else if (route.name === 'Cloud') {
     iconName = 'logo-xbox';
+  } else {
+    iconName = 'ellipse-outline';
   }
   return <Ionicons name={iconName} size={size} color={color} />;
 };
