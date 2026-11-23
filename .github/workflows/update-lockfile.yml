@@ -1,0 +1,33 @@
+name: Update yarn.lock (one-off)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Update the lockfile
+        run: |
+          corepack enable
+          YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --mode update-lockfile
+      - name: Commit the updated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock
+          if git diff --cached --quiet; then
+            echo "yarn.lock already up to date"
+          else
+            git commit -m "Update yarn.lock"
+            git push
+          fi
