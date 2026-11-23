@@ -69,9 +69,9 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
   }, [isFocused]);
 
   const handleSave = () => {
-    userSettings.custom_virtual_gamepad = value;
-    setUserSettings(userSettings);
-    saveUserSettings(userSettings);
+    const next = {...userSettings, custom_virtual_gamepad: value};
+    setUserSettings(next);
+    saveUserSettings(next);
     navigation.goBack();
   };
 
@@ -111,7 +111,11 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
           contentContainerStyle={styles.modal}>
           <Card>
             <Card.Content>
-              <TextInput label="" value={name} onChangeText={onChangeText} />
+              <TextInput
+                label={t('Name')}
+                value={name}
+                onChangeText={onChangeText}
+              />
               <HelperText type="error" visible={isError && nameTouched}>
                 {errorText}
               </HelperText>
@@ -188,13 +192,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     marginBottom: 120,
-  },
-  sliderTitle: {
-    padding: 10,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
   },
   buttonWrap: {
     position: 'absolute',
