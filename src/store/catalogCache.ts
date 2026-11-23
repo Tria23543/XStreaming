@@ -61,11 +61,20 @@ export const saveCatalogCache = (
   sections: CatalogSections,
 ): void => {
   try {
-    storage.set(TITLES_KEY, JSON.stringify(titles.map(projectTitle)));
-    storage.set(
-      META_KEY,
-      JSON.stringify({savedAt: Date.now(), sections}),
-    );
+    // Never let an empty result replace a good cached catalog: the
+    // read side refuses to load an empty titles array, so writing one
+    // would only destroy the previous copy.
+    if (!Array.isArray(titles) || titles.length === 0) {
+      return;
+    }
+    // Build both payloads first, then write the meta LAST: the meta
+    // is the commit point, so an interruption mid-save can only pair
+    // the previous meta with older titles, never new titles with a
+    // fresh timestamp they did not earn.
+    const titlesJson = JSON.stringify(titles.map(projectTitle));
+    const metaJson = JSON.stringify({savedAt: Date.now(), sections});
+    storage.set(TITLES_KEY, titlesJson);
+    storage.set(META_KEY, metaJson);
   } catch (e) {
     log.info('saveCatalogCache failed:', (e && e.message) || e);
   }
@@ -93,6 +102,20 @@ export const loadCatalogCache = (): CatalogCache | null => {
     const titles = JSON.parse(titlesRaw);
     const meta = JSON.parse(metaRaw);
     if (!Array.isArray(titles) || titles.length === 0) {
+      return null;
+    }
+    // Every entry must be a title-shaped object: the Cloud screen
+    // dereferences item.productId while building its map, so a single
+    // malformed entry must invalidate the whole cache rather than
+    // crash the screen.
+    if (
+      !titles.every(
+        item =>
+          item &&
+          typeof item === 'object' &&
+          typeof item.productId === 'string',
+      )
+    ) {
       return null;
     }
     if (!meta || typeof meta.savedAt !== 'number' || !meta.sections) {

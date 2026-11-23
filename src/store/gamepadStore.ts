@@ -3,6 +3,16 @@ import {debugFactory} from '../utils/debug';
 const log = debugFactory('gamepadStore');
 
 const STORE_KEY = 'user.vgamepad';
+// Stored JSON that parses to a scalar or an array is not a settings
+// record: assigning named keys onto it throws in strict mode. Treat
+// anything that is not a plain object as an empty record.
+const asSettingsObject = (value: any): any => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value;
+};
+
 
 const defaultSettings: any = {};
 
@@ -14,7 +24,7 @@ export const saveSettings = (name: string, params: any) => {
     settings = {};
   } else {
     try {
-      settings = JSON.parse(settings);
+      settings = asSettingsObject(JSON.parse(settings));
     } catch (e) {
       settings = {};
     }
@@ -33,7 +43,7 @@ export const deleteSetting = (name: string) => {
     settings = {};
   } else {
     try {
-      settings = JSON.parse(settings);
+      settings = asSettingsObject(JSON.parse(settings));
     } catch (e) {
       settings = {};
     }
@@ -51,6 +61,9 @@ export const getSettings = (): any => {
   }
   try {
     const _settings = JSON.parse(settings);
+    if (!_settings || typeof _settings !== 'object' || Array.isArray(_settings)) {
+      return defaultSettings;
+    }
     return _settings;
   } catch {
     return defaultSettings;
