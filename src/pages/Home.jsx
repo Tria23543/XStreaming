@@ -70,6 +70,13 @@ function HomeScreen({navigation, route}) {
   // must not start a second full sign-in check on top of the refresh
   // the first run just did.
   const skipNextAuthCheckRef = React.useRef(false);
+  // Set when a login prompt failed while the user was on another tab
+  // and no redirect is stored: Home would otherwise come back to a
+  // bare screen with no error and no way to retry. The focus effect
+  // below replays the prompt when the user returns. promptLoginRef
+  // holds the main effect's latest promptLogin for that replay.
+  const pendingLoginPromptRef = React.useRef(false);
+  const promptLoginRef = React.useRef(null);
 
   const dispatch = useDispatch();
 
@@ -82,6 +89,12 @@ function HomeScreen({navigation, route}) {
   // itself does not re-run the flow.
   React.useEffect(() => {
     _isFocused.current = isFocused;
+    if (isFocused && pendingLoginPromptRef.current) {
+      pendingLoginPromptRef.current = false;
+      if (!_redirect.current && promptLoginRef.current) {
+        promptLoginRef.current();
+      }
+    }
   }, [isFocused]);
 
   const [fabOpen, setFabOpen] = React.useState(false);
@@ -125,6 +138,19 @@ function HomeScreen({navigation, route}) {
       unsubscribe();
     };
 
+    // Consume a pending auth-check skip BEFORE both the offline
+    // return below and the focus gate further down: the flag is set
+    // by the needRefresh branch, which runs only when focused and
+    // online, but the setParams re-run it triggers can land while
+    // unfocused OR offline (isConnected is itself an effect dep, so
+    // every connectivity flap re-runs this effect) — if the flag
+    // survived such a run it would eat the NEXT genuine check.
+    // Reading and clearing it here means a stray run consumes it
+    // without acting on it, and the focused branch below uses this
+    // local copy.
+    const skipAuthCheck = skipNextAuthCheckRef.current;
+    skipNextAuthCheckRef.current = false;
+
     if (!isConnected) {
       // Home stays mounted under the other tabs: a global alert raised
       // from here would pop over whatever screen the user is actually
@@ -154,6 +180,9 @@ function HomeScreen({navigation, route}) {
           // SessionId and the OAuth URL (state / code_challenge).
           log.info('Login redirect received');
           _redirect.current = redirectObj;
+          // A stored redirect renders the standalone Login button, so
+          // no pending prompt replay is needed anymore.
+          pendingLoginPromptRef.current = false;
           dispatch({
             type: 'SET_REDIRECT',
             payload: redirectObj,
@@ -206,10 +235,20 @@ function HomeScreen({navigation, route}) {
               Alert.alert(tRef.current('Error'), (e && e.message) || String(e));
             } else {
               log.error('getRedirectUri error:', (e && e.message) || e);
+              // Nothing was shown and, with no redirect stored, the
+              // standalone Login button will not render either:
+              // remember the failure so the focus effect can replay
+              // this prompt when the user comes back to Home.
+              if (!_redirect.current) {
+                pendingLoginPromptRef.current = true;
+              }
             }
           }
         });
     };
+    // Keep the latest promptLogin reachable for the focus effect's
+    // pending-prompt replay.
+    promptLoginRef.current = promptLogin;
 
     if (!_authentication.current) {
       log.info('Authentication initial.');
@@ -294,16 +333,8 @@ function HomeScreen({navigation, route}) {
       });
     }
 
-    // Consume a pending auth-check skip BEFORE the focus gate: the
-    // flag is set by the needRefresh branch below, which runs only
-    // when focused, but the setParams re-run it triggers can land
-    // while unfocused — if the flag survived that run it would eat
-    // the NEXT focused run's genuine check. Reading and clearing it
-    // here means an unfocused re-run consumes it without acting on
-    // it, and the focused branch below uses this local copy.
-    const skipAuthCheck = skipNextAuthCheckRef.current;
-    skipNextAuthCheckRef.current = false;
-
+    // (The skip flag was already consumed above the offline return:
+    // this local copy is what the branch below reads.)
     if (_isFocused.current) {
       log.info('HomeScreen isFocused:', _isFocused.current);
 
@@ -348,8 +379,8 @@ function HomeScreen({navigation, route}) {
         // cleared its param: the refresh it just did IS this run's
         // work — a second full sign-in check on top of it would
         // double the token and console requests on every stream exit.
-        // (The flag itself was already consumed above the focus
-        // gate.)
+        // (The flag itself was already consumed above the offline
+        // return.)
       } else {
         setLoading(true);
         setLoadingText(t('Checking login status...'));

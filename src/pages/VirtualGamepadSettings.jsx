@@ -79,7 +79,18 @@ function VirtualGamepadSettingsScreen({navigation, route}) {
     setUserSettings(_userSettings);
     if (!valueLoadedRef.current) {
       valueLoadedRef.current = true;
-      setValue(_userSettings.custom_virtual_gamepad || '');
+      const storedSelection = _userSettings.custom_virtual_gamepad || '';
+      // The existence check below must cover the FIRST load too: a
+      // selection persisted by an older version (or left behind by
+      // a delete path that did not clear it) can name a layout that
+      // no longer exists, and Edit would open the editor on factory
+      // defaults under that name.
+      setValue(
+        storedSelection &&
+          !Object.keys(_settings).includes(storedSelection)
+          ? ''
+          : storedSelection,
+      );
     } else if (
       valueRef.current &&
       !Object.keys(_settings).includes(valueRef.current)

@@ -49,6 +49,11 @@ function CustomGamepadScreen({navigation, route}) {
   const [currentShow, setCurrentShow] = React.useState(true);
 
   React.useEffect(() => {
+    // A name change on the mounted editor re-runs this effect: the
+    // previous layout's ready flag must not carry over, or a Save in
+    // the new init window would persist the OLD buttons under the
+    // NEW name.
+    setReady(false);
     const _settings = getSettings();
     let _title = '';
     setSettings(_settings);
@@ -225,7 +230,15 @@ function CustomGamepadScreen({navigation, route}) {
                   <List.Item
                     title={t('Delete')}
                     background={background}
-                    onPress={() => handleDelete()}
+                    onPress={() => {
+                      handleDelete();
+                      // Close the modal regardless of the ready
+                      // gate, like Reset does: inside the init
+                      // window handleDelete returns silently, and
+                      // leaving the modal open made the tap look
+                      // dead.
+                      setActionShowModal(false);
+                    }}
                   />
                 )}
                 <List.Item

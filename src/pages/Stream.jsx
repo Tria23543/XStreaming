@@ -189,6 +189,14 @@ function StreamScreen({navigation, route}) {
   // silently skipped when the WebView never answered. A ref reads
   // the current value in every closure.
   const needPoweroffRef = React.useRef(false);
+  // Armed when the streamingClosed alert is PRESENTED (not when the
+  // exit begins): a second streamingClosed message arriving while
+  // the alert is up must not stack a duplicate alert.
+  const closedAlertShownRef = React.useRef(false);
+  // Shared across handleTimeoutExit invocations: a second
+  // timeoutExit message must not run a second finish (duplicate
+  // stop/restart side effects).
+  const timeoutExitFinishedRef = React.useRef(false);
   const [modalMaxHeight, setModalMaxHeight] = React.useState(250);
   const [message, setMessage] = React.useState('');
   const [messageSending, setMessageSending] = React.useState(false);
@@ -274,6 +282,8 @@ function StreamScreen({navigation, route}) {
       log.info('Stream screen receive streamType:', route.params?.streamType);
     }
     exitedRef.current = false;
+    closedAlertShownRef.current = false;
+    timeoutExitFinishedRef.current = false;
     const tokens = streamTokensRef.current || {};
     let builtHomeApi = null;
     let builtCloudApi = null;
@@ -477,12 +487,16 @@ function StreamScreen({navigation, route}) {
   };
 
   const handleTimeoutExit = () => {
-    let finished = false;
+    // A previous invocation already finished the exit: a duplicate
+    // timeoutExit message must not repeat its side effects.
+    if (timeoutExitFinishedRef.current) {
+      return;
+    }
     const finishTimeoutExit = () => {
-      if (finished) {
+      if (timeoutExitFinishedRef.current) {
         return;
       }
-      finished = true;
+      timeoutExitFinishedRef.current = true;
       if (timeoutExitFallbackTimer.current) {
         clearTimeout(timeoutExitFallbackTimer.current);
         timeoutExitFallbackTimer.current = null;
@@ -538,10 +552,12 @@ function StreamScreen({navigation, route}) {
         typeof message === 'string'
           ? message
           : JSON.stringify(message ?? '') || '';
-      // An absent message stringifies to the two characters `""`:
-      // there is nothing to show, so log it instead of alerting an
-      // empty-looking body.
-      if (otherText && otherText !== '""') {
+      // Emptiness is judged on the message itself, not on the
+      // stringified text: an absent message stringifies to the two
+      // characters `""`, but so does a genuine message consisting of
+      // exactly two quote characters — comparing the stringified
+      // text swallowed that real message as if it were absent.
+      if (message !== undefined && message !== null && message !== '') {
         Alert.alert(t('Warning'), otherText);
       } else {
         log.info('WebView other message with no content');
@@ -689,6 +705,15 @@ function StreamScreen({navigation, route}) {
       if (exitedRef.current) {
         return;
       }
+      // Arm the guard at PRESENTATION, not only when an exit begins:
+      // a second streamingClosed arriving while this alert is up
+      // would stack a duplicate that survives navigation to Home,
+      // where its Confirm runs a second stopStream (and a duplicate
+      // power-off, if the first exit was one).
+      if (closedAlertShownRef.current) {
+        return;
+      }
+      closedAlertShownRef.current = true;
       // The WebView answered the disconnect: the normal exit flow owns
       // leaving from here, so cancel the requestExit fallback timer.
       if (exitFallbackTimer.current) {

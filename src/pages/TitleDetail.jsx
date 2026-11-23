@@ -2,7 +2,6 @@ import React from 'react';
 import {StyleSheet, View, ScrollView} from 'react-native';
 import FastImage from 'react-native-fast-image';
 import {Text, Button, HelperText} from 'react-native-paper';
-import Spinner from 'react-native-loading-spinner-overlay';
 import {useTranslation} from 'react-i18next';
 import {debugFactory} from '../utils/debug';
 import {getTitleBadge, isEntitled} from '../components/TitleItem';
@@ -74,11 +73,10 @@ function TitleDetail({navigation, route}) {
 
   return (
     <View style={styles.container}>
-      <Spinner
-        visible={!titleItem && !loadFailed}
-        textContent={t('Loading...')}
-        textStyle={styles.spinnerTextStyle}
-      />
+      {/* No loading spinner: titleItem and loadFailed are initialised
+          as complementary values and the effect only ever sets them
+          as complementary pairs, so a "neither" state cannot occur —
+          the title or the error renders on the first frame. */}
 
       {!titleItem && loadFailed && (
         <View style={styles.errorWrap}>
@@ -188,9 +186,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  spinnerTextStyle: {
-    color: '#FFF',
   },
   scrollView: {
     flex: 1,

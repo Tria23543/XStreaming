@@ -18,6 +18,10 @@ function LoginScreen({navigation, route}) {
   // show a loader rather than the "no login link" error.
   const [paramsChecked, setParamsChecked] = React.useState(false);
   const redirectHandled = React.useRef(false);
+  // True once the login document itself has finished loading for the
+  // current WebView mount: from then on, http errors can only come
+  // from subresources/XHR, never from the document.
+  const documentLoadedRef = React.useRef(false);
 
   React.useEffect(() => {
     setParamsChecked(true);
@@ -25,6 +29,7 @@ function LoginScreen({navigation, route}) {
       // Do not write the full auth URL (it carries auth parameters) to logs.
       log.info('Receive authUrl');
       redirectHandled.current = false;
+      documentLoadedRef.current = false;
       setLoadError(false);
       setAuthUrl(route.params?.authUrl);
     }
@@ -56,6 +61,7 @@ function LoginScreen({navigation, route}) {
             // Remount the WebView (new key) and try loading again,
             // instead of sending the user back to restart the whole
             // login prompt from Home.
+            documentLoadedRef.current = false;
             setLoadError(false);
             setWebviewKey(k => k + 1);
           }}>
@@ -79,16 +85,31 @@ function LoginScreen({navigation, route}) {
           source={{uri: authUrl}}
           originWhitelist={['*']}
           setSupportMultipleWindows={false}
-          onLoadStart={() => setPageLoading(true)}
-          onLoadEnd={() => setPageLoading(false)}
+          onLoadStart={() => {
+            documentLoadedRef.current = false;
+            setPageLoading(true);
+          }}
+          onLoadEnd={() => {
+            documentLoadedRef.current = true;
+            setPageLoading(false);
+          }}
           onError={() => setLoadError(true)}
           onHttpError={syntheticEvent => {
             // Only a failure of the login page ITSELF is fatal: on
             // Android this callback also fires for subresource
             // requests, and one 404 asset (script/style/image/font)
             // must not bounce the user out of a page that loaded
-            // fine. Document failures still land on the error
+            // fine. The extension test below only catches assets
+            // whose URL carries an extension — extensionless XHR and
+            // API failures slip past it — so once the document has
+            // loaded, ALL http errors are non-fatal: by definition
+            // they did not come from the document. Document failures
+            // (which happen before load) still land on the error
             // screen.
+            if (documentLoadedRef.current) {
+              log.info('Ignoring subresource http error after load');
+              return;
+            }
             const errorUrl =
               (syntheticEvent &&
                 syntheticEvent.nativeEvent &&

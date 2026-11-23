@@ -90,6 +90,23 @@ function CloudScreen({navigation, route}) {
   const fetchGamesRef = React.useRef(null);
   const catalogRetryTimerRef = React.useRef(null);
   const catalogRetryCountRef = React.useRef(0);
+  // The token whose fetch APPLIED the titles currently on screen (as
+  // opposed to lastFetchToken, the last successfully stamped one):
+  // if every refresh for the current token then fails, fail() uses
+  // this to tell a foreign catalog it must drop from one of the
+  // current account's it may leave up. Null when the screen's
+  // provenance is unknown (a cache serve).
+  const appliedTokenRef = React.useRef(null);
+  // False only once the screen has unmounted: a superseded fetch
+  // hands its refetch to the newest effect run, but must not start
+  // work for a screen that no longer exists.
+  const mountedRef = React.useRef(true);
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   // Mirror of the current streaming token, readable inside async
   // fetch completions: a fetch that finishes after the token changed
   // (e.g. a different account signed in) must not apply or cache its
@@ -100,9 +117,6 @@ function CloudScreen({navigation, route}) {
   // so a refresh whose curated requests partly fail can fall back to
   // the previous lists instead of wiping every section.
   const lastSectionsRef = React.useRef(emptySections());
-  // The last route-param keyword already applied, so effect re-runs
-  // (token changes etc.) cannot resurrect a search the user cleared.
-  const appliedParamKeywordRef = React.useRef(null);
   const [fabOpen, setFabOpen] = React.useState(false);
   const [view, setView] = React.useState('home');
   const [popularTitles, setPopularTitles] = React.useState([]);
@@ -111,7 +125,6 @@ function CloudScreen({navigation, route}) {
   const [touchTitles, setTouchTitles] = React.useState([]);
   const [customSection, setCustomSection] = React.useState(null);
 
-  const currentTitles = React.useRef([]);
   const xCloudToken = streamingTokens.xCloudToken;
   xCloudTokenRef.current = xCloudToken;
   webTokenRef.current = webToken;
@@ -264,23 +277,6 @@ function CloudScreen({navigation, route}) {
 
   React.useEffect(() => {
     let cancelled = false;
-    if (!route.params?.keyword) {
-      // No param keyword on this run: forget the applied one, so the
-      // same term issued again later is honoured instead of being
-      // treated as already applied.
-      appliedParamKeywordRef.current = null;
-    }
-    // Apply a route-param keyword once per distinct value: this effect
-    // re-runs on token changes too, and re-applying it would resurrect
-    // a search the user has already cleared.
-    if (
-      route.params?.keyword &&
-      appliedParamKeywordRef.current !== route.params.keyword
-    ) {
-      appliedParamKeywordRef.current = route.params.keyword;
-      setKeyword(route.params.keyword);
-      setView('grid');
-    }
     const handleFetchError = e => {
       log.error('Fetch games failed:', (e && e.message) || e);
       setLoading(false);
@@ -348,6 +344,14 @@ function CloudScreen({navigation, route}) {
           return;
         }
         if (cancelled) {
+          // Superseded by an effect re-run that was NOT a token
+          // change (the token case is handled above): the new run
+          // found the fetch latch held and skipped, so hand the fetch
+          // to it — otherwise this failure is dropped and nothing
+          // refetches until pull-to-refresh.
+          if (mountedRef.current && fetchGamesRef.current) {
+            fetchGamesRef.current(background);
+          }
           return;
         }
         if (!background) {
@@ -358,19 +362,30 @@ function CloudScreen({navigation, route}) {
           // the token changed and this refresh for it failed): no
           // effect run will retry on its own, so schedule a bounded
           // number of retries here instead of leaving the previous
-          // account's catalog up indefinitely.
+          // account's catalog up indefinitely. Once the retries are
+          // exhausted, drop a catalog a DIFFERENT token's fetch
+          // applied just before the change — leaving another
+          // account's games up forever is worse than an empty screen
+          // the user can pull-to-refresh.
           if (
             lastFetchToken.current !== xCloudToken &&
-            catalogRetryCountRef.current < 3 &&
             !catalogRetryTimerRef.current
           ) {
-            catalogRetryCountRef.current += 1;
-            catalogRetryTimerRef.current = setTimeout(() => {
-              catalogRetryTimerRef.current = null;
-              if (fetchGamesRef.current) {
-                fetchGamesRef.current(true);
-              }
-            }, 5000);
+            if (catalogRetryCountRef.current < 3) {
+              catalogRetryCountRef.current += 1;
+              catalogRetryTimerRef.current = setTimeout(() => {
+                catalogRetryTimerRef.current = null;
+                if (fetchGamesRef.current) {
+                  fetchGamesRef.current(true);
+                }
+              }, 5000);
+            } else if (
+              appliedTokenRef.current &&
+              appliedTokenRef.current !== xCloudToken
+            ) {
+              appliedTokenRef.current = null;
+              applyCatalog([], emptySections());
+            }
           }
         }
       };
@@ -459,6 +474,14 @@ function CloudScreen({navigation, route}) {
               }
               if (cancelled) {
                 finish();
+                // Superseded by an effect re-run that was not a
+                // token change (the token case is handled above):
+                // the new run found the fetch latch held and
+                // skipped, so hand the fetch to it instead of
+                // discarding these results with no refetch.
+                if (mountedRef.current && fetchGamesRef.current) {
+                  fetchGamesRef.current(background);
+                }
                 return;
               }
               // An empty catalog is a failure, not a result: applying
@@ -478,6 +501,7 @@ function CloudScreen({navigation, route}) {
               // the previous sections still in place: one slow
               // curated list must not hold the whole tab hostage
               // while everything waits for it.
+              appliedTokenRef.current = xCloudToken;
               applyCatalog(_titles, lastSectionsRef.current);
               const aux = await auxPromise;
               // Check the token AGAIN after the wait: the curated
@@ -496,6 +520,14 @@ function CloudScreen({navigation, route}) {
               }
               if (cancelled) {
                 finish();
+                // Superseded by an effect re-run that was not a
+                // token change (the token case is handled above):
+                // the new run found the fetch latch held and
+                // skipped, so hand the fetch to it instead of
+                // discarding these results with no refetch.
+                if (mountedRef.current && fetchGamesRef.current) {
+                  fetchGamesRef.current(background);
+                }
                 return;
               }
               const prev = lastSectionsRef.current;
@@ -508,7 +540,16 @@ function CloudScreen({navigation, route}) {
                 recentIds: aux[5] !== null ? aux[5] : prev.recentIds,
               };
               lastFetchToken.current = xCloudToken;
+              appliedTokenRef.current = xCloudToken;
               catalogRetryCountRef.current = 0;
+              // A retry timer armed by an earlier failure must not
+              // fire now that a fetch has succeeded: it would
+              // re-download and re-save the whole catalog for
+              // nothing.
+              if (catalogRetryTimerRef.current) {
+                clearTimeout(catalogRetryTimerRef.current);
+                catalogRetryTimerRef.current = null;
+              }
               applyCatalog(_titles, sections);
               saveCatalogCache(
                 _titles,
@@ -542,6 +583,9 @@ function CloudScreen({navigation, route}) {
           const owner = catalogOwnerOf(webTokenRef.current);
           if (!cache.owner || !owner || cache.owner === owner) {
             applyCatalog(cache.titles, cache.sections);
+            // Provenance unknown for fail()'s foreign-catalog drop:
+            // a cache display must never be dropped by it.
+            appliedTokenRef.current = null;
             cacheApplied.current = true;
             cacheSavedAt.current = cache.savedAt;
             // Stamp lastFetchToken ONLY when the owner is known to
@@ -578,12 +622,16 @@ function CloudScreen({navigation, route}) {
     return () => {
       cancelled = true;
       subscription?.remove();
+      // The next run starts with a fresh retry budget: without this,
+      // an account that burned its retries would leave the NEXT
+      // account with none until some fetch happened to succeed.
+      catalogRetryCountRef.current = 0;
       if (catalogRetryTimerRef.current) {
         clearTimeout(catalogRetryTimerRef.current);
         catalogRetryTimerRef.current = null;
       }
     };
-  }, [route.params?.keyword, xCloudToken, navigation, applyCatalog, t]);
+  }, [xCloudToken, navigation, applyCatalog, t]);
 
   const onRefresh = React.useCallback(() => {
     if (fetchInFlight.current) {
@@ -641,81 +689,101 @@ function CloudScreen({navigation, route}) {
    * 1 - new
    * 2 - own
    * 3 - all
+   *
+   * The visible list is computed in a memo, not written into a ref
+   * during render: a discarded render could otherwise leave the ref
+   * describing a list the committed screen never showed, while the
+   * header count below reads the same value.
    */
-  let currentTitleText = '';
-
-  switch (current) {
-    case 0:
-      currentTitles.current = RecentTitles;
-      currentTitleText = t('Recently');
-      break;
-    case 1:
-      currentTitles.current = newTitles;
-      currentTitleText = t('Newest');
-      break;
-    case 2:
-      currentTitles.current = orgTitles;
-      currentTitleText = t('Own');
-      break;
-    case 3:
-      currentTitles.current = titles;
-      currentTitleText = t('All');
-      break;
-    case 99: {
-      // A section opened from the home rows resolves its data LIVE
-      // from the current state lists, never from a snapshot taken when
-      // it was tapped: during a cold load the lists are still filling,
-      // and a snapshot would freeze the section at its partial contents.
-      let _sectionData = [];
-      if (customSection) {
-        switch (customSection.source) {
-          case 'included':
-            _sectionData = includedTitles;
-            break;
-          case 'popular':
-            _sectionData = popularTitles;
-            break;
-          case 'leaving':
-            _sectionData = leavingTitles;
-            break;
-          case 'mkb':
-            _sectionData = mkbTitles;
-            break;
-          case 'touch':
-            _sectionData = touchTitles;
-            break;
-          default:
-            _sectionData =
-              customSection.source &&
-              customSection.source.indexOf('genre:') === 0
-                ? genreMap[customSection.source.slice(6)] || []
-                : [];
+  const {visibleTitles, currentTitleText} = React.useMemo(() => {
+    let list;
+    let text = t('Xcloud');
+    switch (current) {
+      case 0:
+        list = RecentTitles;
+        text = t('Recently');
+        break;
+      case 1:
+        list = newTitles;
+        text = t('Newest');
+        break;
+      case 2:
+        list = orgTitles;
+        text = t('Own');
+        break;
+      case 3:
+        list = titles;
+        text = t('All');
+        break;
+      case 99: {
+        // A section opened from the home rows resolves its data LIVE
+        // from the current state lists, never from a snapshot taken when
+        // it was tapped: during a cold load the lists are still filling,
+        // and a snapshot would freeze the section at its partial contents.
+        let _sectionData = [];
+        if (customSection) {
+          switch (customSection.source) {
+            case 'included':
+              _sectionData = includedTitles;
+              break;
+            case 'popular':
+              _sectionData = popularTitles;
+              break;
+            case 'leaving':
+              _sectionData = leavingTitles;
+              break;
+            case 'mkb':
+              _sectionData = mkbTitles;
+              break;
+            case 'touch':
+              _sectionData = touchTitles;
+              break;
+            default:
+              _sectionData =
+                customSection.source &&
+                customSection.source.indexOf('genre:') === 0
+                  ? genreMap[customSection.source.slice(6)] || []
+                  : [];
+          }
         }
+        list = _sectionData;
+        text = customSection ? customSection.title : t('Xcloud');
+        break;
       }
-      currentTitles.current = _sectionData;
-      currentTitleText = customSection ? customSection.title : t('Xcloud');
-      break;
+      default:
+        list = [];
+        text = t('Xcloud');
+        break;
     }
-    default:
-      currentTitles.current = [];
-      currentTitleText = t('Xcloud');
-      break;
-  }
 
-  if (keyword.length > 0) {
-    currentTitles.current = currentTitles.current.filter(title => {
-      return (
-        (title.ProductTitle || '')
-          .toUpperCase()
-          .indexOf(keyword.toUpperCase()) > -1
-      );
-    });
-  }
+    if (keyword.length > 0) {
+      list = list.filter(title => {
+        return (
+          (title.ProductTitle || '')
+            .toUpperCase()
+            .indexOf(keyword.toUpperCase()) > -1
+        );
+      });
+    }
+    return {visibleTitles: list, currentTitleText: text};
+  }, [
+    current,
+    RecentTitles,
+    newTitles,
+    orgTitles,
+    titles,
+    customSection,
+    includedTitles,
+    popularTitles,
+    leavingTitles,
+    mkbTitles,
+    touchTitles,
+    genreMap,
+    keyword,
+    t,
+  ]);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(currentTitles.current.length / 20),
-  );
+  const totalPages = Math.max(1, Math.ceil(visibleTitles.length / 20));
 
   const loadMoreData = () => {
     if (currentPage < totalPages) {
@@ -741,7 +809,7 @@ function CloudScreen({navigation, route}) {
 
   // Show 20 titles per page
   const endIdx = currentPage * 20;
-  let showTitles = currentTitles.current.slice(0, endIdx);
+  let showTitles = visibleTitles.slice(0, endIdx);
 
   const renderSection = (sectionTitle, data, onShowAll) => {
     if (!data || data.length === 0) {
@@ -834,7 +902,7 @@ function CloudScreen({navigation, route}) {
               />
               {view !== 'home' && hydrated && (
                 <Text variant="titleLarge" style={styles.appbarCount}>
-                  {'(' + currentTitles.current.length + ')'}
+                  {'(' + visibleTitles.length + ')'}
                 </Text>
               )}
             </Appbar.Header>

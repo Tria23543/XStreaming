@@ -24,6 +24,10 @@ function FriendsScreen({navigation}) {
   // Shared with onRefresh below: the pull-to-refresh fetch needs the
   // same unmount guard as the effect's fetches.
   const mountedRef = React.useRef(true);
+  // Whether the polling effect below has ever activated: its first
+  // activation coincides with the mount fetch, so only later
+  // activations fetch immediately.
+  const pollActivatedRef = React.useRef(false);
 
   React.useEffect(() => {
     // Guard the async completions: a fetch that resolves after
@@ -62,7 +66,7 @@ function FriendsScreen({navigation}) {
       return;
     }
     const webApi = new WebApi(webToken);
-    const id = setInterval(() => {
+    const poll = () => {
       webApi
         .getFriends()
         .then(data => {
@@ -73,7 +77,17 @@ function FriendsScreen({navigation}) {
         .catch(e => {
           log.error('GetFriends polling error:', e?.message || e);
         });
-    }, 30 * 1000);
+    };
+    // Refresh immediately when the user RETURNS to this screen:
+    // without it, presence can stay up to 30s stale after coming
+    // back, because the interval's first tick is a full period away
+    // and the mount fetch does not re-run on focus. The very first
+    // activation is skipped — the mount effect just fetched.
+    if (pollActivatedRef.current) {
+      poll();
+    }
+    pollActivatedRef.current = true;
+    const id = setInterval(poll, 30 * 1000);
     return () => clearInterval(id);
   }, [webToken, isFocused]);
 

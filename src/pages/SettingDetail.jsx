@@ -151,6 +151,16 @@ function SettingDetailScreen({navigation, route}) {
     if (current === 'signaling_home' || current === 'signaling_cloud') {
       const rs =
         current === 'signaling_home' ? regions.current : xgpuRegions.current;
+      // Nothing selected while regions ARE on screen (none carries
+      // the default flag and no valid choice is stored): there is
+      // no save to make, but the caller's "no servers available"
+      // alert would be false — servers are right there. Return a
+      // distinct sentinel so the caller can ask for a selection
+      // instead. This also covers the stale-stored-value case: never
+      // overwrite a saved signal-server choice with an empty value.
+      if (!value && rs && rs.length > 0) {
+        return 'noselection';
+      }
       // Never overwrite a saved signal-server choice with an empty
       // value (can happen if the page mounted before the tokens
       // existed and no region ended up selected).
@@ -207,6 +217,12 @@ function SettingDetailScreen({navigation, route}) {
       }
     }
     const saved = handleSaveSettings(extra);
+    if (saved === 'noselection') {
+      // Servers are listed but none is selected: ask for a selection
+      // instead of claiming there are no servers.
+      Alert.alert(t('Error'), t('Please select a server first, then save.'));
+      return;
+    }
     if (!saved) {
       // The empty signal-server guard skipped the save: say so and
       // stay on the page instead of showing "Saved" and leaving.
