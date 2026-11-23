@@ -9,6 +9,13 @@ export default class SisuToken extends Token {
   }
 
   getSecondsValid() {
+    if (
+      !this.data?.TitleToken?.NotAfter ||
+      !this.data?.UserToken?.NotAfter ||
+      !this.data?.AuthorizationToken?.NotAfter
+    ) {
+      return 0;
+    }
     const secondsLeftTitle = this.calculateSecondsLeft(
       new Date(this.data.TitleToken.NotAfter),
     );
@@ -26,35 +33,14 @@ export default class SisuToken extends Token {
   }
 
   isValid() {
-    const secondsLeftTitle = this.calculateSecondsLeft(
-      new Date(this.data.TitleToken.NotAfter),
-    );
-    if (secondsLeftTitle <= 0) {
-      return false;
-    }
-
-    const secondsLeftUser = this.calculateSecondsLeft(
-      new Date(this.data.UserToken.NotAfter),
-    );
-    if (secondsLeftUser <= 0) {
-      return false;
-    }
-
-    const secondsLeftAuthorization = this.calculateSecondsLeft(
-      new Date(this.data.AuthorizationToken.NotAfter),
-    );
-    if (secondsLeftAuthorization <= 0) {
-      return false;
-    }
-
-    return true;
+    return this.getSecondsValid() > 0;
   }
 
   getUserHash() {
-    return this.data.UserToken.DisplayClaims.xui[0].uhs;
+    return this.data?.UserToken?.DisplayClaims?.xui?.[0]?.uhs || false;
   }
 
   getGamertag() {
-    return this.data.AuthorizationToken.DisplayClaims.xui[0].gtg;
+    return this.data?.AuthorizationToken?.DisplayClaims?.xui?.[0]?.gtg || false;
   }
 }

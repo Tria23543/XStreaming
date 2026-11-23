@@ -24,16 +24,16 @@ export default class Token {
   }
 
   getUserHash() {
-    if ('UserToken' in this.data) {
-      return this.data.UserToken.DisplayClaims.xui[0].uhs;
+    if (this.data && 'UserToken' in this.data) {
+      return this.data.UserToken?.DisplayClaims?.xui?.[0]?.uhs || false;
     }
 
     return false;
   }
 
   getGamertag() {
-    if ('AuthorizationToken' in this.data) {
-      return this.data.AuthorizationToken.DisplayClaims.xui[0].gtg;
+    if (this.data && 'AuthorizationToken' in this.data) {
+      return this.data.AuthorizationToken?.DisplayClaims?.xui?.[0]?.gtg || false;
     }
 
     return false;

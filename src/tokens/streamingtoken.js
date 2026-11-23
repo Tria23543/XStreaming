@@ -14,7 +14,7 @@ export default class StreamingToken extends Token {
   }
 
   getSecondsValid() {
-    if (this._objectCreateTime + this.data.durationInSeconds * 1000) {
+    if (this.data?.durationInSeconds) {
       return this.calculateSecondsLeft(
         new Date(this._objectCreateTime + this.data.durationInSeconds * 1000),
       );
@@ -24,31 +24,34 @@ export default class StreamingToken extends Token {
   }
 
   isValid() {
-    if (this._objectCreateTime + this.data.durationInSeconds * 1000) {
-      const secondsLeft = this.calculateSecondsLeft(
-        new Date(this._objectCreateTime + this.data.durationInSeconds * 1000),
-      );
-      return secondsLeft > 0;
-    }
-
-    return false;
+    return this.getSecondsValid() > 0;
   }
 
   getMarket() {
-    return this.data.market;
+    return this.data?.market;
   }
 
   getRegions() {
-    return this.data.offeringSettings.regions;
+    return this.data?.offeringSettings?.regions || [];
   }
 
   getDefaultRegion() {
-    return this.data.offeringSettings.regions.filter(
-      region => region.isDefault,
-    )[0];
+    const regions = this.getRegions();
+    return regions.filter(region => region.isDefault)[0] || regions[0];
+  }
+
+  setDefaultRegion(name) {
+    const regions = this.getRegions();
+    if (!regions.some(region => region.name === name)) {
+      return false;
+    }
+    regions.forEach(region => {
+      region.isDefault = region.name === name;
+    });
+    return true;
   }
 
   getEnvironments() {
-    return this.data.offeringSettings.clientCloudSettings.Environments;
+    return this.data?.offeringSettings?.clientCloudSettings?.Environments || [];
   }
 }
