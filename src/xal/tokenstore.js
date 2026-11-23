@@ -75,7 +75,12 @@ export default class TokenStore {
 
   setUserToken(userToken) {
     const expireDate = new Date();
-    expireDate.setSeconds(expireDate.getSeconds() + userToken.data.expires_in);
+    // Coerce before adding: a string expires_in ("3600") would
+    // concatenate instead (30 + "3600" -> "303600"), landing the stored
+    // expiry days in the future so a dead token reads as valid.
+    expireDate.setSeconds(
+      expireDate.getSeconds() + (Number(userToken.data.expires_in) || 0),
+    );
 
     if (isNaN(expireDate.getTime())) {
       // Missing/invalid expires_in: keep the raw data instead of throwing

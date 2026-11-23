@@ -378,6 +378,13 @@ export default class Xal {
 
     try {
       const userToken = await this.refreshUserToken(curUserToken);
+      // Microsoft rotates refresh tokens on use: the stored token may
+      // already be dead now that the refresh succeeded. Persist the new
+      // user token IMMEDIATELY — if the device/Sisu steps below fail on
+      // a transient error, discarding it would leave the dead token in
+      // the store and force a full interactive re-login next time.
+      tokenStore.setUserToken(userToken);
+      tokenStore.save();
       const deviceToken = await this.getDeviceTokenHack();
       const sisuToken = await this.doSisuAuthorization(
         userToken,
