@@ -19,6 +19,7 @@ i18n
     compatibilityJSON: 'v3',
     resources,
     lng: settings.locale || 'en',
+    fallbackLng: 'en',
 
     interpolation: {
       escapeValue: false, // react already safes from xss

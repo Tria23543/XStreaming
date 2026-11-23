@@ -34,16 +34,11 @@ import StreamScreen from './pages/Stream';
 import SettingsScreen from './pages/Settings';
 import SettingDetailScreen from './pages/SettingDetail';
 import TitleDetailScreen from './pages/TitleDetail';
-import DebugScreen from './pages/Debug';
-import GameMapScreen from './pages/GameMap';
-import NativeGameMapScreen from './pages/NativeGameMap';
-import GameMapDetailScreen from './pages/GameMapDetail';
 import DisplaySettingsScreen from './pages/DisplaySettings';
 import AboutScreen from './pages/About';
 import FeedbackScreen from './pages/Feedback';
 import VirtualGamepadSettingsScreen from './pages/VirtualGamepadSettings';
 import CustomGamepadScreen from './pages/CustomGamepad';
-import Ds5SettingsScreen from './pages/Ds5Settings';
 
 import {useTranslation} from 'react-i18next';
 
@@ -131,12 +126,14 @@ function App() {
 
   let paperTheme = paperDarkTheme;
   let navigationTheme = CombinedDarkTheme;
+  let isDarkTheme = true;
 
   if (settings.theme === 'auto') {
-    paperTheme = colorScheme === 'dark' ? paperDarkTheme : paperLightTheme;
-    navigationTheme =
-      colorScheme === 'dark' ? CombinedDarkTheme : CombinedDefaultTheme;
+    isDarkTheme = colorScheme === 'dark';
+    paperTheme = isDarkTheme ? paperDarkTheme : paperLightTheme;
+    navigationTheme = isDarkTheme ? CombinedDarkTheme : CombinedDefaultTheme;
   } else if (settings.theme === 'light') {
+    isDarkTheme = false;
     paperTheme = paperLightTheme;
     navigationTheme = CombinedDefaultTheme;
   }
@@ -163,7 +160,6 @@ function App() {
                   component={StreamScreen}
                   options={{headerShown: false}}
                 />
-                <RootStack.Screen name="Debug" component={DebugScreen} />
                 <RootStack.Screen
                   name="CustomGamepad"
                   component={CustomGamepadScreen}
@@ -190,9 +186,9 @@ function App() {
                   options={{title: t('Friends')}}
                 />
                 <RootStack.Screen
-                  name="Achivements"
+                  name="Achievements"
                   component={AchivementScreen}
-                  options={{title: t('Achivements')}}
+                  options={{title: t('Achievements')}}
                 />
                 <RootStack.Screen
                   name="About"
@@ -205,23 +201,8 @@ function App() {
                   options={{title: t('Feedback')}}
                 />
                 <RootStack.Screen
-                  name="GameMap"
-                  component={GameMapScreen}
-                  options={{title: t('GameMap')}}
-                />
-                <RootStack.Screen
                   name="SettingDetail"
                   component={SettingDetailScreen}
-                />
-                <RootStack.Screen
-                  name="NativeGameMap"
-                  component={NativeGameMapScreen}
-                  options={{title: t('GameMap')}}
-                />
-                <RootStack.Screen
-                  name="Ds5"
-                  component={Ds5SettingsScreen}
-                  options={{title: t('DualSense')}}
                 />
               </RootStack.Group>
 
@@ -231,20 +212,15 @@ function App() {
                   component={TitleDetailScreen}
                 />
                 <RootStack.Screen
-                  name="AchivementDetail"
+                  name="AchievementDetail"
                   component={AchivementDetailScreen}
-                />
-                <RootStack.Screen
-                  name="GameMapDetail"
-                  component={GameMapDetailScreen}
-                  options={{title: t('GameMap')}}
                 />
               </RootStack.Group>
             </RootStack.Navigator>
           </NavigationContainer>
         </PaperProvider>
       </Provider>
-      <SystemBars style="light" hidden={false} />
+      <SystemBars style={isDarkTheme ? 'light' : 'dark'} hidden={false} />
     </>
   );
 }

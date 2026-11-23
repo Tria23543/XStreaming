@@ -9,11 +9,20 @@ export default class Authentication {
   _tokenStore: TokenStore;
   _isAuthenticating: boolean = false;
   _authenticationCompleted: any;
+  _authenticationFailed: any;
 
-  constructor(authenticationCompleted: any) {
+  constructor(authenticationCompleted: any, authenticationFailed?: any) {
     this._tokenStore = new TokenStore();
     this._xal = new Xal();
     this._authenticationCompleted = authenticationCompleted;
+    this._authenticationFailed = authenticationFailed;
+  }
+
+  _notifyFailed(error: any) {
+    this._isAuthenticating = false;
+    if (this._authenticationFailed) {
+      this._authenticationFailed(error);
+    }
   }
 
   /**
@@ -21,30 +30,35 @@ export default class Authentication {
    * 如果已过期但有 userToken -> 尝试静默刷新
    */
   checkAuthentication() {
-    return new Promise<boolean>(async resolve => {
-      this._tokenStore.load();
-      log.info('[checkAuthentication] Starting token check...');
-      log.info(
-        '[checkAuthentication] hasValidAuthTokens:',
-        this._tokenStore.hasValidAuthTokens(),
-      );
-
-      if (this._tokenStore.hasValidAuthTokens()) {
-        log.info('[checkAuthentication] Tokens are valid.');
-        this.startSilentFlow();
-        return resolve(true);
-      }
-
-      if (this._tokenStore.getUserToken() !== undefined) {
+    return new Promise<boolean>(resolve => {
+      try {
+        this._tokenStore.load();
+        log.info('[checkAuthentication] Starting token check...');
         log.info(
-          '[checkAuthentication] Tokens are expired but user token exists. Attempting refresh...',
+          '[checkAuthentication] hasValidAuthTokens:',
+          this._tokenStore.hasValidAuthTokens(),
         );
-        this.startSilentFlow();
-        return resolve(true);
-      }
 
-      log.info('[checkAuthentication] No tokens are present.');
-      return resolve(false);
+        if (this._tokenStore.hasValidAuthTokens()) {
+          log.info('[checkAuthentication] Tokens are valid.');
+          this.startSilentFlow();
+          return resolve(true);
+        }
+
+        if (this._tokenStore.getUserToken() !== undefined) {
+          log.info(
+            '[checkAuthentication] Tokens are expired but user token exists. Attempting refresh...',
+          );
+          this.startSilentFlow();
+          return resolve(true);
+        }
+
+        log.info('[checkAuthentication] No tokens are present.');
+        return resolve(false);
+      } catch (e) {
+        log.error('[checkAuthentication] error:', e);
+        return resolve(false);
+      }
     });
   }
 
@@ -67,6 +81,7 @@ export default class Authentication {
         .getStreamingToken(this._tokenStore)
         .then(streamingTokens => {
           return this._xal.getWebToken(this._tokenStore).then(webToken => {
+            this._isAuthenticating = false;
             this._authenticationCompleted(streamingTokens, webToken);
           });
         })
@@ -74,6 +89,7 @@ export default class Authentication {
           log.error('[startSilentFlow] Silent flow error:', error);
           // 失败时清空 TokenStore 让前端重新触发完整登录流程
           this._tokenStore.clear();
+          this._notifyFailed(error);
         });
       return;
     }
@@ -90,6 +106,7 @@ export default class Authentication {
             this._xal
               .getWebToken(this._tokenStore)
               .then(webToken => {
+                this._isAuthenticating = false;
                 this._authenticationCompleted(streamingTokens, webToken);
               })
               .catch(webError => {
@@ -98,6 +115,7 @@ export default class Authentication {
                   webError,
                 );
                 this._tokenStore.clear();
+                this._notifyFailed(webError);
               });
           })
           .catch(streamError => {
@@ -106,12 +124,14 @@ export default class Authentication {
               streamError,
             );
             this._tokenStore.clear();
+            this._notifyFailed(streamError);
           });
       })
       .catch(refreshError => {
         log.error('[startSilentFlow] refreshTokens failed:', refreshError);
         // 清除可能的无效 token 让前端重新发起登录
         this._tokenStore.clear();
+        this._notifyFailed(refreshError);
       });
   }
 
@@ -121,7 +141,8 @@ export default class Authentication {
    * @param redirectUri 重定向 URI
    */
   startAuthflow(redirect: any, redirectUri: any) {
-    log.info('[startAuthflow] with redirect:', redirect);
+    log.info('[startAuthflow] starting interactive flow');
+    this._isAuthenticating = true;
 
     this._xal
       .authenticateUser(this._tokenStore, redirect, redirectUri)
@@ -133,15 +154,21 @@ export default class Authentication {
           log.info('[startAuthflow] User authenticated, starting silent flow...');
           this.startSilentFlow();
         } else {
-          log.warn('[startAuthflow] authenticateUser returned false (no auth).');
-          // 可能用户取消登录等情况
-          this._tokenStore.clear();
+          // The user cancelled or dismissed the Microsoft login. Any
+          // previously saved login must be kept — never clear the token
+          // store here.
+          log.warn(
+            '[startAuthflow] Login cancelled or returned no auth code; keeping any saved login.',
+          );
+          this._isAuthenticating = false;
+          this._notifyFailed(new Error('Login cancelled'));
         }
       })
       .catch(error => {
-        // 明确捕获错误
+        // A failed login attempt must not destroy a previously saved login.
         log.error('[startAuthflow] Authentication failed:', error);
-        this._tokenStore.clear();
+        this._isAuthenticating = false;
+        this._notifyFailed(error);
       });
   }
 }
