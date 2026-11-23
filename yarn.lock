@@ -8748,6 +8748,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-fast-image@npm:^8.6.3":
+  version: 8.31.2
+  resolution: "react-native-fast-image@npm:8.31.2"
+  peerDependencies:
+    react: ^17 || ^18 || ^19
+    react-native: ">=0.60.0"
+  checksum: 10c0/a5a5e8c639284f184e00d37b206440482ac341d6d42b7208f6e6e89f3f1a93e0f8cf9417d644a21ffb52e2230e1ea2a60ba40b8dc888bbdea124eccfbec18853
+  languageName: node
+  linkType: hard
+
 "react-native-gesture-handler@npm:^2.16.2":
   version: 2.23.1
   resolution: "react-native-gesture-handler@npm:2.23.1"
@@ -10851,6 +10861,7 @@ __metadata:
     react-native: "npm:0.72.14"
     react-native-draggable: "npm:^3.3.0"
     react-native-edge-to-edge: "npm:^0.2.1"
+    react-native-fast-image: "npm:^8.6.3"
     react-native-gesture-handler: "npm:^2.16.2"
     react-native-haptic-feedback: "npm:^2.2.0"
     react-native-loading-spinner-overlay: "npm:^3.0.1"
