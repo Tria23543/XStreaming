@@ -28,6 +28,7 @@ function FriendsScreen({navigation}) {
   // activation coincides with the mount fetch, so only later
   // activations fetch immediately.
   const pollActivatedRef = React.useRef(false);
+  const lastFetchAtRef = React.useRef(0);
 
   React.useEffect(() => {
     // Guard the async completions: a fetch that resolves after
@@ -35,6 +36,7 @@ function FriendsScreen({navigation}) {
     let cancelled = false;
     mountedRef.current = true;
     setLoading(true);
+    lastFetchAtRef.current = Date.now();
     const webApi = new WebApi(webToken);
     webApi
       .getFriends()
@@ -67,6 +69,7 @@ function FriendsScreen({navigation}) {
     }
     const webApi = new WebApi(webToken);
     const poll = () => {
+      lastFetchAtRef.current = Date.now();
       webApi
         .getFriends()
         .then(data => {
@@ -81,9 +84,19 @@ function FriendsScreen({navigation}) {
     // Refresh immediately when the user RETURNS to this screen:
     // without it, presence can stay up to 30s stale after coming
     // back, because the interval's first tick is a full period away
-    // and the mount fetch does not re-run on focus. The very first
-    // activation is skipped — the mount effect just fetched.
-    if (pollActivatedRef.current) {
+    // and the mount fetch does not re-run on focus. The skip for a
+    // just-fetched activation is judged by the last fetch's AGE,
+    // not by token identity: a token change in the same commit is
+    // covered by the mount effect's fetch (fresh stamp, skip), but
+    // a token that changed while the screen was unfocused — where
+    // this effect early-returns before any identity stamp could
+    // update — leaves data as old as the unfocused gap, and the
+    // return must poll. The very first activation is also skipped:
+    // the mount effect just fetched.
+    if (
+      pollActivatedRef.current &&
+      Date.now() - lastFetchAtRef.current > 5000
+    ) {
       poll();
     }
     pollActivatedRef.current = true;

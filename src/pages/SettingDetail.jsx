@@ -275,14 +275,14 @@ function SettingDetailScreen({navigation, route}) {
         <>
           <RadioButton.Group onValueChange={val => setValue(val)} value={value}>
             {currentMetas.data.map((item, idx) => {
-                return (
-                  <RadioButton.Item
-                    key={idx}
-                    label={item.text}
-                    value={item.value}
-                  />
-                );
-              })}
+              return (
+                <RadioButton.Item
+                  key={idx}
+                  label={item.text}
+                  value={item.value}
+                />
+              );
+            })}
           </RadioButton.Group>
           {value === 'custom' && (
             <>

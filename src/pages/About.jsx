@@ -4,7 +4,7 @@ import {Text} from 'react-native-paper';
 import LinkText from '../components/LinkText';
 import {useTranslation} from 'react-i18next';
 
-function AboutScreen({navigation, route}) {
+function AboutScreen() {
   const {t} = useTranslation();
   return (
     <ScrollView style={styles.container}>

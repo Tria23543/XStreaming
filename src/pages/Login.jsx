@@ -18,10 +18,15 @@ function LoginScreen({navigation, route}) {
   // show a loader rather than the "no login link" error.
   const [paramsChecked, setParamsChecked] = React.useState(false);
   const redirectHandled = React.useRef(false);
-  // True once the login document itself has finished loading for the
-  // current WebView mount: from then on, http errors can only come
-  // from subresources/XHR, never from the document.
-  const documentLoadedRef = React.useRef(false);
+  // The URL of the login document that most recently finished
+  // loading (null while a load is in flight), and the WebView's
+  // current main-frame URL as tracked from navigation state changes.
+  // Http errors are judged against these: only a failure of the
+  // document itself is fatal — a bare "a load ended" boolean cannot
+  // tell a good document from an error page, and an extension test
+  // cannot catch extensionless subresource failures.
+  const loadedUrlRef = React.useRef(null);
+  const currentUrlRef = React.useRef('');
 
   React.useEffect(() => {
     setParamsChecked(true);
@@ -29,7 +34,8 @@ function LoginScreen({navigation, route}) {
       // Do not write the full auth URL (it carries auth parameters) to logs.
       log.info('Receive authUrl');
       redirectHandled.current = false;
-      documentLoadedRef.current = false;
+      loadedUrlRef.current = null;
+      currentUrlRef.current = route.params?.authUrl;
       setLoadError(false);
       setAuthUrl(route.params?.authUrl);
     }
@@ -61,7 +67,8 @@ function LoginScreen({navigation, route}) {
             // Remount the WebView (new key) and try loading again,
             // instead of sending the user back to restart the whole
             // login prompt from Home.
-            documentLoadedRef.current = false;
+            loadedUrlRef.current = null;
+            currentUrlRef.current = authUrl;
             setLoadError(false);
             setWebviewKey(k => k + 1);
           }}>
@@ -85,54 +92,69 @@ function LoginScreen({navigation, route}) {
           source={{uri: authUrl}}
           originWhitelist={['*']}
           setSupportMultipleWindows={false}
-          onLoadStart={() => {
-            documentLoadedRef.current = false;
+          onLoadStart={syntheticEvent => {
+            loadedUrlRef.current = null;
+            // The load event's own URL is the authoritative record
+            // of the document now loading — independent of
+            // navigation-state timing, which can lag a redirect hop.
+            const startUrl =
+              syntheticEvent &&
+              syntheticEvent.nativeEvent &&
+              syntheticEvent.nativeEvent.url;
+            if (startUrl) {
+              currentUrlRef.current = startUrl;
+            }
             setPageLoading(true);
           }}
-          onLoadEnd={() => {
-            documentLoadedRef.current = true;
+          onLoadEnd={syntheticEvent => {
+            loadedUrlRef.current =
+              (syntheticEvent &&
+                syntheticEvent.nativeEvent &&
+                syntheticEvent.nativeEvent.url) ||
+              currentUrlRef.current ||
+              null;
             setPageLoading(false);
           }}
           onError={() => setLoadError(true)}
           onHttpError={syntheticEvent => {
-            // Only a failure of the login page ITSELF is fatal: on
-            // Android this callback also fires for subresource
-            // requests, and one 404 asset (script/style/image/font)
-            // must not bounce the user out of a page that loaded
-            // fine. The extension test below only catches assets
-            // whose URL carries an extension — extensionless XHR and
-            // API failures slip past it — so once the document has
-            // loaded, ALL http errors are non-fatal: by definition
-            // they did not come from the document. Document failures
-            // (which happen before load) still land on the error
-            // screen.
-            if (documentLoadedRef.current) {
-              log.info('Ignoring subresource http error after load');
-              return;
-            }
+            // Only a failure of the login page ITSELF is fatal: this
+            // callback also fires for subresource requests, and one
+            // failed asset or XHR — with or without a file extension
+            // in its URL — must not bounce the user out of a page
+            // that is loading or has loaded fine. The fatal case is
+            // judged only while a load is IN FLIGHT (no document has
+            // completed for this navigation): the failing URL must
+            // equal the URL the current load started with, which
+            // onLoadStart records from its own event. Once a document
+            // HAS loaded, no http error is fatal — a same-URL XHR
+            // the page makes to its own endpoint is indistinguishable
+            // from a document load by URL alone, and the page handles
+            // those responses itself.
             const errorUrl =
               (syntheticEvent &&
                 syntheticEvent.nativeEvent &&
                 syntheticEvent.nativeEvent.url) ||
               '';
             if (
-              /\.(js|css|png|jpe?g|gif|svg|ico|woff2?|ttf|map)(\?|#|$)/i.test(
-                errorUrl,
-              )
+              !loadedUrlRef.current &&
+              errorUrl &&
+              errorUrl === currentUrlRef.current
             ) {
+              setLoadError(true);
               return;
             }
-            setLoadError(true);
+            log.info('Ignoring subresource http error');
           }}
-        onShouldStartLoadWithRequest={request => {
-          if (request.url.startsWith('ms-xal-000000004c20a908:')) {
-            handleRedirect(request.url);
-            return false;
-          }
-          return true;
-        }}
+          onShouldStartLoadWithRequest={request => {
+            if (request.url.startsWith('ms-xal-000000004c20a908:')) {
+              handleRedirect(request.url);
+              return false;
+            }
+            return true;
+          }}
           onNavigationStateChange={navState => {
             const {url} = navState;
+            currentUrlRef.current = url;
             if (url.startsWith('ms-xal-000000004c20a908:')) {
               handleRedirect(url);
             }

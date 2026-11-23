@@ -197,6 +197,11 @@ function StreamScreen({navigation, route}) {
   // timeoutExit message must not run a second finish (duplicate
   // stop/restart side effects).
   const timeoutExitFinishedRef = React.useRef(false);
+  const timeoutExitInFlightRef = React.useRef(false);
+  // True while the session effect is live; its cleanup clears it.
+  // Async completions that outlive the screen (a stopStream promise
+  // settling after unmount) check it before causing effects.
+  const streamAliveRef = React.useRef(false);
   const [modalMaxHeight, setModalMaxHeight] = React.useState(250);
   const [message, setMessage] = React.useState('');
   const [messageSending, setMessageSending] = React.useState(false);
@@ -284,6 +289,8 @@ function StreamScreen({navigation, route}) {
     exitedRef.current = false;
     closedAlertShownRef.current = false;
     timeoutExitFinishedRef.current = false;
+    timeoutExitInFlightRef.current = false;
+    streamAliveRef.current = true;
     const tokens = streamTokensRef.current || {};
     let builtHomeApi = null;
     let builtCloudApi = null;
@@ -338,6 +345,7 @@ function StreamScreen({navigation, route}) {
     );
 
     return () => {
+      streamAliveRef.current = false;
       timeoutIds.forEach(id => clearTimeout(id));
       Orientation.unlockAllOrientations();
       timer.current && clearInterval(timer.current);
@@ -415,7 +423,7 @@ function StreamScreen({navigation, route}) {
   const handlePowerOff = async () => {
     try {
       const webApi = new WebApi(webToken);
-      const powerOffRes = await webApi.powerOff(route.params?.sessionId);
+      await webApi.powerOff(route.params?.sessionId);
       log.info('powerOff done');
     } catch (e) {
       // Called fire-and-forget during exit: a failed power-off must not
@@ -445,7 +453,11 @@ function StreamScreen({navigation, route}) {
   };
 
   const handleExit = () => {
-    if (isExiting) {
+    // exitedRef as well as the state: finishExit resets isExiting
+    // when the first exit completes, and a late trigger (the
+    // streamingClosed alert's Confirm or dismiss timer, firing after
+    // the user was already taken Home) must not run a second exit.
+    if (isExiting || exitedRef.current) {
       return;
     }
     // Mark the exit as begun NOW, not when finishExit's navigation
@@ -487,16 +499,27 @@ function StreamScreen({navigation, route}) {
   };
 
   const handleTimeoutExit = () => {
-    // A previous invocation already finished the exit: a duplicate
-    // timeoutExit message must not repeat its side effects.
-    if (timeoutExitFinishedRef.current) {
+    // A previous invocation finished the exit, or one is already in
+    // flight: a duplicate timeoutExit message must not repeat its
+    // side effects. Guarding only the finish let a second in-flight
+    // invocation call stopStream again and overwrite the fallback
+    // timer ref, orphaning the first timer past the unmount cleanup.
+    if (timeoutExitFinishedRef.current || timeoutExitInFlightRef.current) {
       return;
     }
+    timeoutExitInFlightRef.current = true;
     const finishTimeoutExit = () => {
+      // The user already left: a stopStream promise settling late
+      // must not arm the restart timer now — nothing would clear it,
+      // and the app would restart over whatever the user moved on to.
+      if (!streamAliveRef.current) {
+        return;
+      }
       if (timeoutExitFinishedRef.current) {
         return;
       }
       timeoutExitFinishedRef.current = true;
+      timeoutExitInFlightRef.current = false;
       if (timeoutExitFallbackTimer.current) {
         clearTimeout(timeoutExitFallbackTimer.current);
         timeoutExitFallbackTimer.current = null;
@@ -557,7 +580,11 @@ function StreamScreen({navigation, route}) {
       // characters `""`, but so does a genuine message consisting of
       // exactly two quote characters — comparing the stringified
       // text swallowed that real message as if it were absent.
-      if (message !== undefined && message !== null && message !== '') {
+      const hasContent =
+        message !== undefined &&
+        message !== null &&
+        !(typeof message === 'string' && message.trim() === '');
+      if (hasContent) {
         Alert.alert(t('Warning'), otherText);
       } else {
         log.info('WebView other message with no content');
@@ -714,12 +741,11 @@ function StreamScreen({navigation, route}) {
         return;
       }
       closedAlertShownRef.current = true;
-      // The WebView answered the disconnect: the normal exit flow owns
-      // leaving from here, so cancel the requestExit fallback timer.
-      if (exitFallbackTimer.current) {
-        clearTimeout(exitFallbackTimer.current);
-        exitFallbackTimer.current = null;
-      }
+      // The requestExit fallback timer is deliberately NOT cancelled
+      // here: if a competing alert keeps this one from ever
+      // presenting, its Confirm/onDismiss never run, and the fallback
+      // is the only remaining way off the dead picture. Confirm below
+      // cancels it; onDismiss replaces it.
       let closedConfirmPressed = false;
       Alert.alert(
         t('Warning'),
@@ -730,6 +756,10 @@ function StreamScreen({navigation, route}) {
             style: 'default',
             onPress: () => {
               closedConfirmPressed = true;
+              if (exitFallbackTimer.current) {
+                clearTimeout(exitFallbackTimer.current);
+                exitFallbackTimer.current = null;
+              }
               handleExit();
             },
           },
@@ -814,6 +844,9 @@ function StreamScreen({navigation, route}) {
     if (type === 'performance') {
       const oldPerf = performance;
       const perf = message;
+      if (!perf || typeof perf !== 'object') {
+        return;
+      }
 
       if (oldPerf) {
         if (
@@ -977,11 +1010,20 @@ function StreamScreen({navigation, route}) {
     setShowModal(false);
     // If the WebView never answers with streamingClosed/exit, leave via
     // handleExit anyway instead of stranding the user on a dead picture.
-    // (The streamingClosed handler clears this timer when it does answer.)
+    // If it DOES answer, the streamingClosed alert takes over the exit
+    // and this timer stands down when it fires (below).
     if (exitFallbackTimer.current) {
       clearTimeout(exitFallbackTimer.current);
     }
     exitFallbackTimer.current = setTimeout(() => {
+      exitFallbackTimer.current = null;
+      // The streamingClosed alert is up: it owns the exit from here
+      // (its Confirm and onDismiss both lead to handleExit). Firing
+      // handleExit underneath it would leave the alert floating over
+      // Home, where its callbacks would attempt a second exit.
+      if (closedAlertShownRef.current) {
+        return;
+      }
       handleExit();
     }, 2000);
   };

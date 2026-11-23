@@ -77,6 +77,10 @@ function HomeScreen({navigation, route}) {
   // holds the main effect's latest promptLogin for that replay.
   const pendingLoginPromptRef = React.useRef(false);
   const promptLoginRef = React.useRef(null);
+  // A login prompt already in flight must not be started twice: the
+  // focus replay and a main-effect failure landing in the same commit
+  // would otherwise both complete and stack two login alerts.
+  const promptInFlightRef = React.useRef(false);
 
   const dispatch = useDispatch();
 
@@ -90,8 +94,15 @@ function HomeScreen({navigation, route}) {
   React.useEffect(() => {
     _isFocused.current = isFocused;
     if (isFocused && pendingLoginPromptRef.current) {
-      pendingLoginPromptRef.current = false;
-      if (!_redirect.current && promptLoginRef.current) {
+      if (_redirect.current?.sisuAuth?.MsaOauthRedirect) {
+        // A usable redirect arrived meanwhile: the standalone Login
+        // button renders, so no replay is needed. (The test is the
+        // URL test the button itself uses — a redirect object
+        // without the OAuth URL renders no button and must not
+        // retire the pending prompt.)
+        pendingLoginPromptRef.current = false;
+      } else if (promptLoginRef.current) {
+        pendingLoginPromptRef.current = false;
         promptLoginRef.current();
       }
     }
@@ -172,6 +183,10 @@ function HomeScreen({navigation, route}) {
     }
 
     const promptLogin = () => {
+      if (promptInFlightRef.current) {
+        return;
+      }
+      promptInFlightRef.current = true;
       _authentication.current._xal
         .getRedirectUri()
         .then(redirectObj => {
@@ -239,11 +254,14 @@ function HomeScreen({navigation, route}) {
               // standalone Login button will not render either:
               // remember the failure so the focus effect can replay
               // this prompt when the user comes back to Home.
-              if (!_redirect.current) {
+              if (!_redirect.current?.sisuAuth?.MsaOauthRedirect) {
                 pendingLoginPromptRef.current = true;
               }
             }
           }
+        })
+        .finally(() => {
+          promptInFlightRef.current = false;
         });
     };
     // Keep the latest promptLogin reachable for the focus effect's
@@ -268,6 +286,9 @@ function HomeScreen({navigation, route}) {
       };
       const authenticationCompleted = async (_streamingTokens, _webToken) => {
         log.info('Authentication completed');
+        // Signed in — a prompt failure remembered from another tab
+        // must not replay now and tell a logged-in user to log in.
+        pendingLoginPromptRef.current = false;
         webTokenRef.current = _webToken;
         // Re-apply the user's saved signal-server choices, because fresh
         // streaming tokens always start from Microsoft's default region.

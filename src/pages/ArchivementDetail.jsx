@@ -83,11 +83,11 @@ function ArchivementDetail({navigation, route}) {
       const webApi = new WebApi(webToken);
       if (route.params?.titleId) {
         const titleId = route.params.titleId;
-        const resultes = await webApi.getAchivementDetail(titleId);
+        const results = await webApi.getAchivementDetail(titleId);
         // Apply only if the screen still shows the title this
         // refresh was started for.
         if (mountedRef.current && currentTitleRef.current === titleId) {
-          setArchivements(resultes);
+          setArchivements(results);
         }
       }
     } catch (e) {

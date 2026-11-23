@@ -20,7 +20,7 @@ import {
 } from '../store/settingStore';
 import {getSettings} from '../store/gamepadStore';
 
-function VirtualGamepadSettingsScreen({navigation, route}) {
+function VirtualGamepadSettingsScreen({navigation}) {
   const {t} = useTranslation();
   const [value, setValue] = React.useState('');
   const [name, setName] = React.useState('');

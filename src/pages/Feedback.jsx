@@ -4,7 +4,7 @@ import {Text} from 'react-native-paper';
 import LinkText from '../components/LinkText';
 import {useTranslation} from 'react-i18next';
 
-function FeedbackScreen({navigation, route}) {
+function FeedbackScreen() {
   const {t} = useTranslation();
   return (
     <ScrollView style={styles.container}>

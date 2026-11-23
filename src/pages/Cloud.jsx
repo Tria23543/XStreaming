@@ -23,6 +23,7 @@ import {
   saveCatalogCache,
   emptySections,
   CATALOG_TTL_MS,
+  projectTitle,
 } from '../store/catalogCache';
 import {debugFactory} from '../utils/debug';
 import {useTranslation} from 'react-i18next';
@@ -41,19 +42,22 @@ const SIGL_TOUCH = '9c86f07a-f3e8-45ad-82a0-a1f759597059';
 // account's library as its own.
 const catalogOwnerOf = token => {
   try {
+    // The token handed in is the XSTS web token: its claims sit at
+    // data.DisplayClaims (the same place WebApi.getClaims reads).
+    // Reading the Sisu shape (data.AuthorizationToken...) here made
+    // this return null for every real token.
     const xui =
       token &&
       token.data &&
-      token.data.AuthorizationToken &&
-      token.data.AuthorizationToken.DisplayClaims &&
-      token.data.AuthorizationToken.DisplayClaims.xui;
+      token.data.DisplayClaims &&
+      token.data.DisplayClaims.xui;
     return (xui && xui[0] && (xui[0].uhs || xui[0].gtg)) || null;
   } catch (e) {
     return null;
   }
 };
 
-function CloudScreen({navigation, route}) {
+function CloudScreen({navigation}) {
   const {t} = useTranslation();
   const theme = useTheme();
   const streamingTokens = useSelector(state => state.streamingTokens);
@@ -97,6 +101,12 @@ function CloudScreen({navigation, route}) {
   // current account's it may leave up. Null when the screen's
   // provenance is unknown (a cache serve).
   const appliedTokenRef = React.useRef(null);
+  // The account owner (from the web token) whose fetch applied the
+  // titles, stamped alongside appliedTokenRef: the foreign-catalog
+  // test compares owners when both are known, because a same-account
+  // token re-mint replaces the token OBJECT and must not condemn
+  // its own account's catalog.
+  const appliedOwnerRef = React.useRef(null);
   // False only once the screen has unmounted: a superseded fetch
   // hands its refetch to the newest effect run, but must not start
   // work for a screen that no longer exists.
@@ -187,9 +197,13 @@ function CloudScreen({navigation, route}) {
     // keyword filter and the grid key extractor all dereference the
     // raw list, so the malformed-entry skip must cover it too, not
     // just the map built below.
-    const safeTitles = (allTitles || []).filter(
-      item => item && typeof item.productId === 'string',
-    );
+    const safeTitles = (allTitles || [])
+      .filter(item => item && typeof item.productId === 'string')
+      // Normalise through the cache projection: live fetch results
+      // must get the same field-type guarantees as cached ones, or a
+      // malformed API entry crashes the memos the projection exists
+      // to protect.
+      .map(projectTitle);
     const _titleMap = {};
     const _orgTitles = [];
     safeTitles.forEach(item => {
@@ -275,6 +289,23 @@ function CloudScreen({navigation, route}) {
     }
   }, []);
 
+  // Whether the fetch-applied catalog on screen belongs to a
+  // different account than the current one: by owner when both
+  // owners are known, else by token identity. A cache serve is never
+  // foreign (appliedTokenRef is null then).
+  const fetchAppliedCatalogIsForeign = currentToken => {
+    const applied = appliedTokenRef.current;
+    if (!applied || applied === currentToken) {
+      return false;
+    }
+    const appliedOwner = appliedOwnerRef.current;
+    const currentOwner = catalogOwnerOf(webTokenRef.current);
+    if (appliedOwner && currentOwner) {
+      return appliedOwner !== currentOwner;
+    }
+    return true;
+  };
+
   React.useEffect(() => {
     let cancelled = false;
     const handleFetchError = e => {
@@ -338,7 +369,7 @@ function CloudScreen({navigation, route}) {
         // this effect run, so checking cancelled first would make
         // this recovery unreachable exactly when it is needed.
         if (xCloudTokenRef.current !== xCloudToken) {
-          if (fetchGamesRef.current) {
+          if (mountedRef.current && fetchGamesRef.current) {
             fetchGamesRef.current(background);
           }
           return;
@@ -355,6 +386,16 @@ function CloudScreen({navigation, route}) {
           return;
         }
         if (!background) {
+          // A foreground failure leaves the error alert as the only
+          // feedback, but a catalog a DIFFERENT token's fetch applied
+          // must not stay up behind it: no effect run will retry, so
+          // drop it here exactly as the background path does once its
+          // retries are exhausted.
+          if (fetchAppliedCatalogIsForeign(xCloudToken)) {
+            appliedTokenRef.current = null;
+            appliedOwnerRef.current = null;
+            applyCatalog([], emptySections());
+          }
           handleFetchError(e);
         } else {
           log.error('Background catalog refresh failed:', (e && e.message) || e);
@@ -379,11 +420,9 @@ function CloudScreen({navigation, route}) {
                   fetchGamesRef.current(true);
                 }
               }, 5000);
-            } else if (
-              appliedTokenRef.current &&
-              appliedTokenRef.current !== xCloudToken
-            ) {
+            } else if (fetchAppliedCatalogIsForeign(xCloudToken)) {
               appliedTokenRef.current = null;
+              appliedOwnerRef.current = null;
               applyCatalog([], emptySections());
             }
           }
@@ -447,10 +486,15 @@ function CloudScreen({navigation, route}) {
                 // Same malformed-entry filter applyCatalog applies:
                 // the genre memo and keyword filter dereference the
                 // raw list, so partial data needs it too.
+                appliedTokenRef.current = xCloudToken;
+                appliedOwnerRef.current =
+                  catalogOwnerOf(webTokenRef.current);
                 setTitles(
-                  (partialTitles || []).filter(
-                    item => item && typeof item.productId === 'string',
-                  ),
+                  (partialTitles || [])
+                    .filter(
+                      item => item && typeof item.productId === 'string',
+                    )
+                    .map(projectTitle),
                 );
               }
             })
@@ -467,7 +511,7 @@ function CloudScreen({navigation, route}) {
               // fetchInFlight latched forever and wedges the tab.
               if (xCloudTokenRef.current !== xCloudToken) {
                 finish();
-                if (fetchGamesRef.current) {
+                if (mountedRef.current && fetchGamesRef.current) {
                   fetchGamesRef.current(background);
                 }
                 return;
@@ -502,6 +546,8 @@ function CloudScreen({navigation, route}) {
               // curated list must not hold the whole tab hostage
               // while everything waits for it.
               appliedTokenRef.current = xCloudToken;
+              appliedOwnerRef.current =
+                catalogOwnerOf(webTokenRef.current);
               applyCatalog(_titles, lastSectionsRef.current);
               const aux = await auxPromise;
               // Check the token AGAIN after the wait: the curated
@@ -513,7 +559,7 @@ function CloudScreen({navigation, route}) {
               // handler.)
               if (xCloudTokenRef.current !== xCloudToken) {
                 finish();
-                if (fetchGamesRef.current) {
+                if (mountedRef.current && fetchGamesRef.current) {
                   fetchGamesRef.current(background);
                 }
                 return;
@@ -541,6 +587,8 @@ function CloudScreen({navigation, route}) {
               };
               lastFetchToken.current = xCloudToken;
               appliedTokenRef.current = xCloudToken;
+              appliedOwnerRef.current =
+                catalogOwnerOf(webTokenRef.current);
               catalogRetryCountRef.current = 0;
               // A retry timer armed by an earlier failure must not
               // fire now that a fetch has succeeded: it would
@@ -586,6 +634,7 @@ function CloudScreen({navigation, route}) {
             // Provenance unknown for fail()'s foreign-catalog drop:
             // a cache display must never be dropped by it.
             appliedTokenRef.current = null;
+            appliedOwnerRef.current = null;
             cacheApplied.current = true;
             cacheSavedAt.current = cache.savedAt;
             // Stamp lastFetchToken ONLY when the owner is known to

@@ -5,7 +5,7 @@ import {getSettings, saveSettings} from '../store/settingStore';
 import {useTranslation} from 'react-i18next';
 import Display from '../components/Display';
 
-function DisplaySettings({navigation, route}) {
+function DisplaySettings({navigation}) {
   const {t} = useTranslation();
 
   const [settings, setSettings] = React.useState({});

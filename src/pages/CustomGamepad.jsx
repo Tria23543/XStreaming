@@ -63,7 +63,6 @@ function CustomGamepadScreen({navigation, route}) {
       setTitle(route.params?.name);
     }
 
-    // console.log('_settings:', _settings);
     FullScreenManager.immersiveModeOn();
     Orientation.lockToLandscape();
     const initTimer = setTimeout(() => {
@@ -213,7 +212,14 @@ function CustomGamepadScreen({navigation, route}) {
                 <List.Item
                   title={t('Save')}
                   background={background}
-                  onPress={() => handleSave()}
+                  onPress={() => {
+                    handleSave();
+                    // Close the modal like Reset and Delete do:
+                    // inside the init window handleSave returns
+                    // silently, and leaving the modal open made the
+                    // tap look dead.
+                    setActionShowModal(false);
+                  }}
                 />
                 <List.Item
                   title={t('Reset')}
